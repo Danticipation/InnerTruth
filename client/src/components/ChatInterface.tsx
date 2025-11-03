@@ -48,7 +48,7 @@ export function ChatInterface() {
       return res.json();
     },
     onSuccess: (data: any) => {
-      setMessages(prev => [...prev, data.userMessage, data.aiMessage]);
+      setMessages(prev => [...prev, data.aiMessage]);
     }
   });
 
