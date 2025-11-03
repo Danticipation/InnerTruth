@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +20,29 @@ export function ChatInterface() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await apiRequest("POST", "/api/messages", {
+        conversationId,
+        role: "user",
+        content
+      });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setMessages(prev => [...prev, data.aiMessage]);
+    }
+  });
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, sendMessageMutation.isPending]);
 
   useEffect(() => {
     const createConversation = async () => {
@@ -37,20 +60,6 @@ export function ChatInterface() {
     };
     createConversation();
   }, []);
-
-  const sendMessageMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const res = await apiRequest("POST", "/api/messages", {
-        conversationId,
-        role: "user",
-        content
-      });
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      setMessages(prev => [...prev, data.aiMessage]);
-    }
-  });
 
   const handleSend = () => {
     if (!input.trim() || !conversationId) return;
@@ -116,6 +125,7 @@ export function ChatInterface() {
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
           
