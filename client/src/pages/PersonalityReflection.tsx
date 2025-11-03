@@ -88,7 +88,7 @@ const StatCard = ({ icon: Icon, label, value, description }: { icon: any; label:
 );
 
 export default function PersonalityReflection() {
-  const { data: reflection, isLoading } = useQuery<PersonalityReflection>({
+  const { data: reflection, isLoading, error } = useQuery<PersonalityReflection>({
     queryKey: ["/api/personality-reflection"],
   });
 
@@ -109,6 +109,69 @@ export default function PersonalityReflection() {
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to load personality reflection";
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardNav />
+        <main className="max-w-5xl mx-auto px-6 py-8">
+          <Card className="border-destructive">
+            <CardContent className="py-16">
+              <div className="text-center space-y-4">
+                <div className="text-destructive text-4xl mb-4">⚠</div>
+                <h2 className="text-2xl font-bold">Error Loading Reflection</h2>
+                <p className="text-muted-foreground max-w-md mx-auto">{errorMessage}</p>
+                <Button 
+                  onClick={() => window.location.reload()}
+                  variant="outline"
+                  className="mt-4"
+                  data-testid="button-retry-load"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (generateMutation.isError) {
+    const errorMessage = generateMutation.error instanceof Error 
+      ? generateMutation.error.message 
+      : "Failed to generate personality reflection";
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardNav />
+        <main className="max-w-5xl mx-auto px-6 py-8">
+          <Card className="border-destructive">
+            <CardContent className="py-16">
+              <div className="text-center space-y-4">
+                <div className="text-destructive text-4xl mb-4">⚠</div>
+                <h2 className="text-2xl font-bold">Error Generating Reflection</h2>
+                <p className="text-muted-foreground max-w-md mx-auto">{errorMessage}</p>
+                <p className="text-sm text-muted-foreground">
+                  Make sure you have enough data: conversations, journal entries, and mood entries.
+                </p>
+                <Button 
+                  onClick={() => generateMutation.reset()}
+                  variant="outline"
+                  className="mt-4"
+                  data-testid="button-retry-generate"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Try Again
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </main>
       </div>
     );

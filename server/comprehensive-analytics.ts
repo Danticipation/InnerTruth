@@ -237,79 +237,130 @@ Provide a deeply comprehensive JSON analysis with the following structure:
   },
   
   "behavioralPatterns": [
-    "Specific, observable behavior pattern 1 with concrete examples",
-    "Pattern 2...",
-    "5-10 patterns total - be VERY specific, not generic"
+    "EXACTLY 8-12 ITEMS REQUIRED",
+    "Specific, observable behavior pattern 1 with concrete examples from their data",
+    "Pattern 2 with evidence...",
+    "Each pattern must be unique and cite specific examples",
+    "Be VERY specific, not generic - personalize to this individual"
   ],
   
   "emotionalPatterns": [
-    "How they process and express emotions - specific patterns",
-    "Emotional triggers and reactions",
-    "5-8 detailed emotional patterns"
+    "EXACTLY 8-12 ITEMS REQUIRED",
+    "How they process and express emotions - specific patterns with examples",
+    "Emotional triggers and reactions observed in their data",
+    "Each pattern should be detailed and evidence-based"
   ],
   
   "relationshipDynamics": [
+    "EXACTLY 8-12 ITEMS REQUIRED",
     "How they relate to others - attachment style, boundaries, conflicts",
-    "Patterns in friendships, romantic relationships, family",
-    "5-8 specific relationship insights"
+    "Patterns in friendships, romantic relationships, family dynamics",
+    "Each insight must be specific to them, not generic relationship advice"
   ],
   
   "copingMechanisms": [
-    "How they handle stress, anxiety, conflict",
-    "Defense mechanisms they use (healthy and unhealthy)",
-    "5-8 coping strategies observed"
+    "EXACTLY 8-12 ITEMS REQUIRED",
+    "How they handle stress, anxiety, conflict - cite specific examples",
+    "Defense mechanisms they use (both healthy and unhealthy)",
+    "Each mechanism should reference actual behaviors from their data"
   ],
   
   "growthAreas": [
-    "Specific areas for development with actionable insights",
-    "What's blocking their growth",
-    "8-12 detailed growth opportunities"
+    "EXACTLY 8-12 ITEMS REQUIRED - THIS IS MANDATORY",
+    "Specific areas for development with actionable, personalized insights",
+    "What's blocking their growth - be specific and evidence-based",
+    "Each growth area should feel like it was written just for them"
   ],
   
   "strengths": [
-    "Underutilized or unrecognized strengths",
-    "Natural talents and capabilities",
-    "6-10 specific strengths with evidence"
+    "EXACTLY 8-12 ITEMS REQUIRED",
+    "Underutilized or unrecognized strengths with specific evidence",
+    "Natural talents and capabilities they might not fully appreciate",
+    "Each strength should be backed by examples from their data"
   ],
   
   "blindSpots": [
-    "What they can't see about themselves",
+    "EXACTLY 8-12 ITEMS REQUIRED",
+    "What they genuinely can't see about themselves - be specific",
     "Contradictions between self-perception and reality",
-    "6-10 significant blind spots"
+    "Each blind spot should be personalized with supporting evidence"
   ],
   
   "valuesAndBeliefs": [
-    "Core values that drive decisions",
-    "Belief systems and worldview",
-    "6-8 fundamental values/beliefs"
+    "EXACTLY 8-12 ITEMS REQUIRED",
+    "Core values that drive their decisions - cite examples",
+    "Belief systems and worldview evident in their writing/conversations",
+    "Each value/belief should be specific to their unique perspective"
   ],
   
   "therapeuticInsights": [
-    "Deep psychological insights a therapist would notice",
+    "EXACTLY 8-12 ITEMS REQUIRED - THIS IS CRITICAL",
+    "Deep psychological insights a therapist would notice after months of sessions",
     "Unconscious patterns, inner conflicts, developmental roots",
-    "8-12 profound therapeutic-level insights"
+    "Each insight should be profound, specific, and evidence-based",
+    "This is where you reveal what they REALLY need to know about themselves"
   ]
 }
 
-CRITICAL INSTRUCTIONS:
-1. Be EXTREMELY SPECIFIC - cite actual examples from their data
-2. Don't give generic advice - everything should be personalized
-3. Be honest and direct - they want the truth, not platitudes
-4. Look for contradictions, patterns across time, and subtle themes
-5. This should feel like years of therapy condensed into insights
-6. Each array should have MULTIPLE detailed entries (not just 2-3)
-7. The summary should be comprehensive and integrative, not superficial`;
+CRITICAL INSTRUCTIONS - FOLLOW EXACTLY:
+1. MANDATORY: Each array MUST contain EXACTLY 8-12 items. No exceptions.
+2. Be EXTREMELY SPECIFIC - cite actual examples from their data every time
+3. Don't give generic advice - everything must be uniquely personalized to THIS individual
+4. Be brutally honest and direct - they want "scary accurate" truth, not platitudes
+5. Look for contradictions, patterns across time, and subtle psychological themes
+6. This should feel like 5+ years of intensive therapy condensed into insights
+7. Quality AND Quantity: Each insight must be both detailed AND there must be 8-12 of them
+8. The summary should be comprehensive (3-4 paragraphs minimum), integrative, deeply insightful
+9. Make their jaw drop - reveal things about themselves they didn't consciously know
+10. Use evidence from ALL data sources (conversations, journals, moods, facts) to support each insight`;
 
     try {
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: analysisPrompt }],
         temperature: 0.7,
-        max_tokens: 4000,
+        max_tokens: 6000,  // Increased for comprehensive output
         response_format: { type: "json_object" }
       });
 
       const analysis = JSON.parse(completion.choices[0].message.content || "{}");
+      
+      // Validate and enforce that we got the required depth (8-12 items per category)
+      const arrayFields = [
+        'behavioralPatterns', 
+        'emotionalPatterns', 
+        'relationshipDynamics', 
+        'copingMechanisms',
+        'growthAreas',
+        'strengths',
+        'blindSpots',
+        'valuesAndBeliefs',
+        'therapeuticInsights'
+      ];
+
+      const validationIssues: string[] = [];
+      arrayFields.forEach(field => {
+        const arr = analysis[field] || [];
+        
+        if (arr.length < 8) {
+          validationIssues.push(`${field} has only ${arr.length} items (minimum 8 required)`);
+        } else if (arr.length > 12) {
+          // Truncate to 12 items and log warning
+          analysis[field] = arr.slice(0, 12);
+          validationIssues.push(`${field} had ${arr.length} items (truncated to 12)`);
+        }
+      });
+
+      // If any category has fewer than 8 items, reject the analysis
+      const criticalIssues = validationIssues.filter(issue => issue.includes('minimum'));
+      if (criticalIssues.length > 0) {
+        console.error('AI analysis failed validation - insufficient depth:', criticalIssues);
+        throw new Error(`Analysis does not meet minimum depth requirements. ${criticalIssues.join(', ')}`);
+      }
+
+      if (validationIssues.length > 0) {
+        console.warn('AI analysis validation notices:', validationIssues);
+      }
       
       return {
         ...analysis,
