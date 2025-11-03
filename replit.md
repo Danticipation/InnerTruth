@@ -15,7 +15,9 @@ Mirror is an AI-powered personality analysis application that helps users discov
 2. **Digital Journal** (`/journal`)
    - Private journaling with writing prompts
    - Automatic word count and date tracking
-   - Previous entries browsing
+   - Previous entries browsing with edit and delete capabilities
+   - Edit dialog with full content modification
+   - Delete confirmation with undo protection
    - AI analysis triggered after entries are saved
 
 3. **Personality Dashboard** (`/dashboard`)
@@ -59,6 +61,8 @@ Mirror is an AI-powered personality analysis application that helps users discov
 - `POST /api/messages` - Send message, get AI response
 - `POST /api/journal-entries` - Save journal entry
 - `GET /api/journal-entries` - Get all journal entries
+- `PUT /api/journal-entries/:id` - Update journal entry (with ownership verification)
+- `DELETE /api/journal-entries/:id` - Delete journal entry (with ownership verification)
 - `POST /api/analyze-personality` - Run comprehensive analysis
 - `GET /api/insights` - Get AI-generated insights
 - `GET /api/stats` - Get user statistics
@@ -99,6 +103,15 @@ Mirror is an AI-powered personality analysis application that helps users discov
 - **Ownership Verification**: Conversation/message access verified before allowing read/write
 - **Server-Side Security**: userId injected server-side for journals/insights (cannot be forged by client)
 - **Type Safety**: Separate schemas for client validation vs server operations ensure security
+
+### Journal Entry Management (November 2025)
+- **Edit Functionality**: Full journal entry editing with dialog interface
+- **Delete Functionality**: Entry deletion with confirmation dialog to prevent accidents
+- **Ownership Verification**: PUT/DELETE endpoints verify user owns entry before allowing modification
+- **Seamless UX**: Edit and delete buttons on each previous entry card
+- **Word Count Tracking**: Automatically updates word count when editing entries
+- **Cache Invalidation**: Mutations properly invalidate TanStack Query cache for instant UI updates
+- **Security**: Server-side ownership checks prevent cross-user data manipulation
 
 ### Persistent Memory System (MAJOR)
 - **Migrated to PostgreSQL**: All data now persists permanently (no more data loss on restart)
