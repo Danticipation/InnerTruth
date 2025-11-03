@@ -16,7 +16,7 @@ export interface IStorage {
   createMessage(message: InsertMessage): Promise<Message>;
   getMessagesByConversationId(conversationId: string): Promise<Message[]>;
   
-  createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
+  createJournalEntry(entry: InsertJournalEntry & { userId: string }): Promise<JournalEntry>;
   getJournalEntriesByUserId(userId: string): Promise<JournalEntry[]>;
   updateJournalEntry(id: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry>;
   deleteJournalEntry(id: string): Promise<void>;
@@ -119,12 +119,14 @@ export class MemStorage implements IStorage {
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
-  async createJournalEntry(insertEntry: InsertJournalEntry): Promise<JournalEntry> {
+  async createJournalEntry(insertEntry: InsertJournalEntry & { userId: string }): Promise<JournalEntry> {
     const id = randomUUID();
     const entry: JournalEntry = {
-      ...insertEntry,
-      prompt: insertEntry.prompt ?? null,
       id,
+      userId: insertEntry.userId,
+      content: insertEntry.content,
+      prompt: insertEntry.prompt ?? null,
+      wordCount: insertEntry.wordCount,
       createdAt: new Date()
     };
     this.journalEntries.set(id, entry);
@@ -266,7 +268,7 @@ export class PostgresStorage implements IStorage {
       .orderBy(messages.createdAt);
   }
 
-  async createJournalEntry(insertEntry: InsertJournalEntry): Promise<JournalEntry> {
+  async createJournalEntry(insertEntry: InsertJournalEntry & { userId: string }): Promise<JournalEntry> {
     const result = await db.insert(journalEntries).values(insertEntry).returning();
     return result[0];
   }
