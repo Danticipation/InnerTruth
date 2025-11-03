@@ -164,12 +164,13 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Card data-testid="card-chat-interface">
-        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            AI Conversation
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <span className="hidden sm:inline">AI Conversation</span>
+            <span className="sm:hidden">Chat</span>
           </CardTitle>
           <Button 
             variant="outline" 
@@ -177,13 +178,13 @@ export function ChatInterface() {
             onClick={handleNewConversation}
             data-testid="button-new-conversation"
           >
-            <Plus className="h-4 w-4 mr-1" />
-            New Chat
+            <Plus className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">New Chat</span>
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <ScrollArea className="h-[400px] pr-4" data-testid="scroll-messages">
-            <div className="space-y-4">
+        <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
+          <ScrollArea className="h-[300px] sm:h-[400px] pr-2 sm:pr-4" data-testid="scroll-messages">
+            <div className="space-y-3 sm:space-y-4">
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -191,14 +192,14 @@ export function ChatInterface() {
                   data-testid={`message-${message.role}-${message.id}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg p-4 ${
+                    className={`max-w-[85%] sm:max-w-[80%] rounded-lg p-3 sm:p-4 ${
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted"
                     }`}
                   >
-                    <p className="text-sm">{message.content}</p>
-                    <p className={`text-xs mt-2 ${
+                    <p className="text-sm break-words">{message.content}</p>
+                    <p className={`text-xs mt-1.5 sm:mt-2 ${
                       message.role === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
                     }`}>
                       {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -208,7 +209,7 @@ export function ChatInterface() {
               ))}
               {sendMessageMutation.isPending && (
                 <div className="flex justify-start">
-                  <div className="bg-muted rounded-lg p-4">
+                  <div className="bg-muted rounded-lg p-3 sm:p-4">
                     <p className="text-sm text-muted-foreground">AI is typing...</p>
                   </div>
                 </div>
@@ -223,7 +224,7 @@ export function ChatInterface() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Share your thoughts..."
-                className="resize-none"
+                className="resize-none text-sm sm:text-base"
                 rows={3}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -237,10 +238,10 @@ export function ChatInterface() {
                 onClick={handleSend}
                 disabled={!input.trim() || sendMessageMutation.isPending}
                 size="icon"
-                className="h-auto"
+                className="h-auto shrink-0"
                 data-testid="button-send-message"
               >
-                <Send className="h-5 w-5" />
+                <Send className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
           </div>
@@ -248,16 +249,16 @@ export function ChatInterface() {
       </Card>
       
       <Card data-testid="card-suggested-prompts">
-        <CardHeader>
-          <CardTitle className="text-base">Conversation Starters</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-sm sm:text-base">Conversation Starters</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6">
           <div className="flex flex-wrap gap-2">
             {suggestedPrompts.map((prompt, index) => (
               <Badge
                 key={index}
                 variant="secondary"
-                className="cursor-pointer hover-elevate active-elevate-2 px-3 py-2"
+                className="cursor-pointer hover-elevate active-elevate-2 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm"
                 onClick={() => handlePromptClick(prompt)}
                 data-testid={`badge-prompt-${index}`}
               >

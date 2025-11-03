@@ -39,10 +39,10 @@ export default function Insights() {
     <div className="min-h-screen bg-background">
       <DashboardNav />
       
-      <main className="max-w-5xl mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2" data-testid="text-insights-title">Your Insights</h1>
-          <p className="text-muted-foreground" data-testid="text-insights-description">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+        <div className="mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2" data-testid="text-insights-title">Your Insights</h1>
+          <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-insights-description">
             AI-generated observations about your personality patterns, blind spots, and growth opportunities
           </p>
         </div>

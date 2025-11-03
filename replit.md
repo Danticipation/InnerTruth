@@ -104,6 +104,16 @@ Mirror is an AI-powered personality analysis application that helps users discov
 - **Server-Side Security**: userId injected server-side for journals/insights (cannot be forged by client)
 - **Type Safety**: Separate schemas for client validation vs server operations ensure security
 
+### Mobile Optimization (November 2025)
+- **Mobile Navigation**: Hamburger menu with Sheet drawer for easy navigation on mobile devices
+- **Responsive Design**: All pages optimized for screens from 320px to desktop widths
+- **Touch-Friendly UI**: Appropriately sized buttons and touch targets throughout
+- **Adaptive Layouts**: Grids stack vertically on mobile, expand on desktop
+- **Responsive Typography**: Text sizes adjust for readability across all screen sizes
+- **Mobile Cards**: Compact padding and spacing optimized for small screens
+- **No Horizontal Scroll**: All content fits within viewport width on mobile
+- **Tested Pages**: Home, Chat, Journal, PersonalityReflection, Dashboard, Insights, Profile
+
 ### Journal Entry Management (November 2025)
 - **Edit Functionality**: Full journal entry editing with dialog interface
 - **Delete Functionality**: Entry deletion with confirmation dialog to prevent accidents

@@ -72,17 +72,17 @@ const Big5TraitBar = ({ label, value }: { label: string; value: number }) => {
 
 const StatCard = ({ icon: Icon, label, value, description }: { icon: any; label: string; value: string | number; description?: string }) => (
   <Card>
-    <CardContent className="pt-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="p-2 rounded-md bg-primary/10">
-          <Icon className="h-5 w-5 text-primary" />
+    <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
+      <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+        <div className="p-1.5 sm:p-2 rounded-md bg-primary/10 shrink-0">
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
         </div>
-        <div className="flex-1">
-          <p className="text-2xl font-bold">{value}</p>
-          <p className="text-sm text-muted-foreground">{label}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-lg sm:text-2xl font-bold truncate">{value}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground truncate">{label}</p>
         </div>
       </div>
-      {description && <p className="text-xs text-muted-foreground mt-2">{description}</p>}
+      {description && <p className="text-xs text-muted-foreground mt-1 sm:mt-2">{description}</p>}
     </CardContent>
   </Card>
 );
@@ -239,20 +239,22 @@ export default function PersonalityReflection() {
     <div className="min-h-screen bg-background">
       <DashboardNav />
       
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6 md:space-y-8">
         {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-4xl font-bold mb-2" data-testid="text-reflection-title">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-1 sm:mb-2" data-testid="text-reflection-title">
               Your Comprehensive Personality Reflection
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Generated {new Date(reflection.createdAt).toLocaleDateString()} • Deep AI Analysis
             </p>
           </div>
           <Button 
             onClick={() => generateMutation.mutate()}
             variant="outline"
+            size="sm"
+            className="sm:size-default w-full sm:w-auto"
             data-testid="button-refresh-reflection"
           >
             <RefreshCw className="mr-2 h-4 w-4" />
@@ -261,7 +263,7 @@ export default function PersonalityReflection() {
         </div>
 
         {/* Statistics Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <StatCard 
             icon={Brain}
             label="Engagement Score"
@@ -290,25 +292,25 @@ export default function PersonalityReflection() {
 
         {/* Archetype & Summary */}
         <Card className="border-2 border-primary/20">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Sparkles className="h-6 w-6 text-primary" />
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
               <div>
-                <CardTitle className="text-2xl">Your Personality Archetype</CardTitle>
-                <CardDescription>Core identity and essence</CardDescription>
+                <CardTitle className="text-lg sm:text-xl md:text-2xl">Your Personality Archetype</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Core identity and essence</CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Badge variant="outline" className="text-lg px-4 py-2">
+          <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
+            <Badge variant="outline" className="text-sm sm:text-base md:text-lg px-3 sm:px-4 py-1.5 sm:py-2">
               {reflection.coreTraits.archetype}
             </Badge>
-            <p className="text-base leading-relaxed whitespace-pre-line">
+            <p className="text-sm sm:text-base leading-relaxed whitespace-pre-line">
               {reflection.summary}
             </p>
-            <div className="flex flex-wrap gap-2 pt-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 pt-1 sm:pt-2">
               {reflection.coreTraits.dominantTraits.map((trait, i) => (
-                <Badge key={i} variant="secondary">{trait}</Badge>
+                <Badge key={i} variant="secondary" className="text-xs sm:text-sm">{trait}</Badge>
               ))}
             </div>
           </CardContent>
@@ -316,14 +318,14 @@ export default function PersonalityReflection() {
 
         {/* Big 5 Personality Traits */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+              <Target className="h-4 w-4 sm:h-5 sm:w-5" />
               Big 5 Personality Traits
             </CardTitle>
-            <CardDescription>Scientific personality dimensions</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">Scientific personality dimensions</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
             <Big5TraitBar label="Openness" value={reflection.coreTraits.big5.openness} />
             <Big5TraitBar label="Conscientiousness" value={reflection.coreTraits.big5.conscientiousness} />
             <Big5TraitBar label="Extraversion" value={reflection.coreTraits.big5.extraversion} />
@@ -416,21 +418,21 @@ export default function PersonalityReflection() {
           </CardContent>
         </Card>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
           {/* Strengths */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
                 Strengths
               </CardTitle>
-              <CardDescription>Your superpowers</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Your superpowers</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
+            <CardContent className="p-4 sm:p-6">
+              <ul className="space-y-1.5 sm:space-y-2">
                 {reflection.strengths.map((strength, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm">
-                    <span className="text-primary font-bold">•</span>
+                  <li key={i} className="flex items-start gap-2 text-xs sm:text-sm">
+                    <span className="text-primary font-bold shrink-0">•</span>
                     <span>{strength}</span>
                   </li>
                 ))}
@@ -440,18 +442,18 @@ export default function PersonalityReflection() {
 
           {/* Blind Spots */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+                <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                 Blind Spots
               </CardTitle>
-              <CardDescription>What you can't see about yourself</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">What you can't see about yourself</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
+            <CardContent className="p-4 sm:p-6">
+              <ul className="space-y-1.5 sm:space-y-2">
                 {reflection.blindSpots.map((spot, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm">
-                    <span className="text-yellow-500 font-bold">•</span>
+                  <li key={i} className="flex items-start gap-2 text-xs sm:text-sm">
+                    <span className="text-yellow-500 font-bold shrink-0">•</span>
                     <span>{spot}</span>
                   </li>
                 ))}

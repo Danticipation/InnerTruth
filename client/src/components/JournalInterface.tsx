@@ -113,13 +113,14 @@ export function JournalInterface() {
   };
 
   return (
-    <div className="grid lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
+    <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="lg:col-span-2 space-y-4 sm:space-y-6">
         <Card data-testid="card-journal-editor">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Today's Entry
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline">Today's Entry</span>
+              <span className="sm:hidden">Entry</span>
             </CardTitle>
             <div className="flex gap-2">
               <Button
@@ -128,23 +129,24 @@ export function JournalInterface() {
                 disabled={!entry.trim() || saveEntryMutation.isPending}
                 data-testid="button-save-entry"
               >
-                <Save className="mr-2 h-4 w-4" />
-                {saveEntryMutation.isPending ? "Saving..." : "Save Entry"}
+                <Save className="sm:mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">{saveEntryMutation.isPending ? "Saving..." : "Save Entry"}</span>
+                <span className="sm:hidden">{saveEntryMutation.isPending ? "..." : "Save"}</span>
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
             <Textarea
               value={entry}
               onChange={(e) => setEntry(e.target.value)}
               placeholder="What's on your mind? Write freely about your thoughts, feelings, and experiences..."
-              className="min-h-[400px] resize-none font-serif text-base"
+              className="min-h-[300px] sm:min-h-[400px] resize-none font-serif text-sm sm:text-base"
               data-testid="textarea-journal-entry"
             />
-            <div className="flex justify-between items-center text-sm text-muted-foreground">
+            <div className="flex justify-between items-center text-xs sm:text-sm text-muted-foreground flex-wrap gap-2">
               <span data-testid="text-word-count">{entry.split(/\s+/).filter(w => w).length} words</span>
               {selectedPrompt && (
-                <Badge variant="secondary" data-testid="badge-active-prompt">
+                <Badge variant="secondary" className="text-xs" data-testid="badge-active-prompt">
                   Prompt: {selectedPrompt}
                 </Badge>
               )}
@@ -153,20 +155,20 @@ export function JournalInterface() {
         </Card>
       </div>
       
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <Card data-testid="card-journal-prompts">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-sm sm:text-base flex items-center gap-2">
               <Lightbulb className="h-4 w-4" />
               Writing Prompts
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-2 p-4 sm:p-6">
             {prompts.map((prompt, index) => (
               <Button
                 key={index}
                 variant="outline"
-                className="w-full justify-start text-left h-auto py-3"
+                className="w-full justify-start text-left h-auto py-2 sm:py-3 text-xs sm:text-sm"
                 onClick={() => {
                   setSelectedPrompt(prompt);
                   setEntry(entry ? entry + "\n\n" + prompt + "\n" : prompt + "\n");
@@ -180,30 +182,31 @@ export function JournalInterface() {
         </Card>
         
         <Card data-testid="card-previous-entries">
-          <CardHeader>
-            <CardTitle className="text-base">Previous Entries</CardTitle>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-sm sm:text-base">Previous Entries</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[300px]">
-              <div className="space-y-3">
+          <CardContent className="p-4 sm:p-6">
+            <ScrollArea className="h-[250px] sm:h-[300px]">
+              <div className="space-y-2 sm:space-y-3">
                 {previousEntries.map((prev) => (
                   <Card
                     key={prev.id}
                     className="hover-elevate"
                     data-testid={`card-entry-${prev.id}`}
                   >
-                    <CardContent className="pt-4 pb-3">
-                      <div className="flex justify-between items-start mb-2">
-                        <p className="text-sm font-semibold">
+                    <CardContent className="pt-3 sm:pt-4 pb-2 sm:pb-3 px-3 sm:px-4">
+                      <div className="flex justify-between items-start mb-1.5 sm:mb-2 gap-2">
+                        <p className="text-xs sm:text-sm font-semibold">
                           {new Date(prev.createdAt).toLocaleDateString()}
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 shrink-0">
                           <Badge variant="secondary" className="text-xs">
-                            {prev.wordCount} words
+                            {prev.wordCount}w
                           </Badge>
                           <Button
                             size="icon"
                             variant="ghost"
+                            className="h-7 w-7 sm:h-8 sm:w-8"
                             onClick={() => {
                               setEditingEntry(prev);
                               setEditContent(prev.content);
@@ -215,6 +218,7 @@ export function JournalInterface() {
                           <Button
                             size="icon"
                             variant="ghost"
+                            className="h-7 w-7 sm:h-8 sm:w-8"
                             onClick={() => setDeletingEntry(prev)}
                             data-testid={`button-delete-${prev.id}`}
                           >
@@ -222,14 +226,14 @@ export function JournalInterface() {
                           </Button>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                         {prev.content.substring(0, 100)}...
                       </p>
                     </CardContent>
                   </Card>
                 ))}
                 {previousEntries.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground text-center py-4">
                     No previous entries yet
                   </p>
                 )}
