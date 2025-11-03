@@ -18,6 +18,8 @@ export interface IStorage {
   
   createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
   getJournalEntriesByUserId(userId: string): Promise<JournalEntry[]>;
+  updateJournalEntry(id: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry>;
+  deleteJournalEntry(id: string): Promise<void>;
   
   getPersonalityInsightsByUserId(userId: string): Promise<PersonalityInsight[]>;
   createPersonalityInsight(insight: Omit<PersonalityInsight, "id" | "createdAt">): Promise<PersonalityInsight>;
@@ -133,6 +135,24 @@ export class MemStorage implements IStorage {
     return Array.from(this.journalEntries.values())
       .filter((entry) => entry.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async updateJournalEntry(id: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry> {
+    const existing = this.journalEntries.get(id);
+    if (!existing) {
+      throw new Error("Journal entry not found");
+    }
+    const updated: JournalEntry = {
+      ...existing,
+      ...updates,
+      prompt: updates.prompt ?? existing.prompt,
+    };
+    this.journalEntries.set(id, updated);
+    return updated;
+  }
+
+  async deleteJournalEntry(id: string): Promise<void> {
+    this.journalEntries.delete(id);
   }
 
   async getPersonalityInsightsByUserId(userId: string): Promise<PersonalityInsight[]> {
@@ -255,6 +275,23 @@ export class PostgresStorage implements IStorage {
     return await db.select().from(journalEntries)
       .where(eq(journalEntries.userId, userId))
       .orderBy(desc(journalEntries.createdAt));
+  }
+
+  async updateJournalEntry(id: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry> {
+    const result = await db
+      .update(journalEntries)
+      .set(updates)
+      .where(eq(journalEntries.id, id))
+      .returning();
+    
+    if (!result[0]) {
+      throw new Error("Journal entry not found");
+    }
+    return result[0];
+  }
+
+  async deleteJournalEntry(id: string): Promise<void> {
+    await db.delete(journalEntries).where(eq(journalEntries.id, id));
   }
 
   async getPersonalityInsightsByUserId(userId: string): Promise<PersonalityInsight[]> {
