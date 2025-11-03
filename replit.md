@@ -77,6 +77,14 @@ Mirror is an AI-powered personality analysis application that helps users discov
 
 ## Recent Changes (November 2025)
 
+### Conversation Persistence (November 2025)
+- **SessionStorage Implementation**: Current conversation ID persists across page navigation
+- **Three-Tier Loading Priority**: (1) Load stored conversation ID, (2) Load most recent, (3) Create new only if none exist
+- **Seamless Navigation**: Chat conversations persist when switching between Dashboard, Journal, and Insights pages
+- **New Chat Button**: Users can start fresh conversations while preserving conversation history
+- **Auto-Scroll**: Messages automatically scroll into view for seamless conversation flow
+- **Zero Data Loss**: All messages stored in PostgreSQL and retrieved on page reload
+
 ### Branding & Logo (November 2025)
 - **Custom Logo Integration**: Chakrai logo (two-face mirror design) now appears throughout the app
 - **Reusable Logo Component**: Flexible sizes (sm/md/lg) and optional text display
