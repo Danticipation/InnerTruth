@@ -77,6 +77,11 @@ Mirror is an AI-powered personality analysis application that helps users discov
 
 ## Recent Changes (November 2025)
 
+### Branding & Logo (November 2025)
+- **Custom Logo Integration**: Chakrai logo (two-face mirror design) now appears throughout the app
+- **Reusable Logo Component**: Flexible sizes (sm/md/lg) and optional text display
+- **Consistent Branding**: Logo appears on landing page, home page, and all authenticated pages
+
 ### Multi-User Authentication & Data Isolation (CRITICAL SECURITY)
 - **Replit Auth Integration**: OpenID Connect with Google, GitHub, X, Apple, email/password login
 - **Session Management**: PostgreSQL-backed sessions with 7-day TTL and secure httpOnly cookies

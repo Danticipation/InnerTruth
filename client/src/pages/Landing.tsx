@@ -1,16 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, MessageCircle, BookOpen, BarChart3 } from "lucide-react";
+import { MessageCircle, BookOpen, BarChart3 } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 export default function Landing() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Brain className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-bold">Mirror</h1>
-          </div>
+          <Logo size="md" />
           <Button asChild data-testid="button-login">
             <a href="/api/login">Sign In</a>
           </Button>
@@ -59,7 +57,7 @@ export default function Landing() {
 
             <Card>
               <CardHeader>
-                <Brain className="w-8 h-8 mb-2 text-primary" />
+                <Logo showText={false} size="md" className="mb-2" />
                 <CardTitle className="text-lg">Blind Spots</CardTitle>
               </CardHeader>
               <CardContent>

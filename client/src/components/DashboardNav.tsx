@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "./ThemeToggle";
 import { Home, MessageSquare, BookOpen, BarChart3, User } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { Logo } from "./Logo";
 
 const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: Home },
@@ -19,8 +20,8 @@ export function DashboardNav() {
     <nav className="border-b sticky top-0 z-50 bg-background">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between gap-4">
-          <Link href="/dashboard">
-            <a className="text-xl font-semibold" data-testid="link-logo">Mirror</a>
+          <Link href="/dashboard" data-testid="link-logo">
+            <Logo size="sm" />
           </Link>
           
           <div className="hidden md:flex items-center gap-2">
