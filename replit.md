@@ -69,12 +69,13 @@ Mirror is an AI-powered personality analysis application that helps users discov
 
 ### Data Model
 ```typescript
-- Users: Basic user data (currently using default user)
-- Conversations: User chat sessions
+- Users: User accounts with authentication via Replit Auth (OIDC)
+- Sessions: PostgreSQL-backed session storage with 7-day TTL
+- Conversations: User chat sessions (per-user isolation)
 - Messages: Individual chat messages (user/assistant)
-- Journal Entries: Daily reflections with word count
-- Personality Insights: AI-generated observations
-- Memory Facts: Extracted factual knowledge about the user
+- Journal Entries: Daily reflections with word count (per-user isolation)
+- Personality Insights: AI-generated observations (per-user isolation)
+- Memory Facts: Extracted factual knowledge about the user (per-user isolation)
 - Memory Fact Mentions: Evidence linking facts to specific messages/journals
 - Memory Snapshots: Periodic summaries of memory state (schema ready, not yet used)
 ```
@@ -145,14 +146,15 @@ Mirror is an AI-powered personality analysis application that helps users discov
 - Semantic embeddings for better memory deduplication
 - Memory snapshot generation to prevent prompt bloat at scale
 - Personality questionnaires
-- User authentication system (multi-user support)
-- Trend tracking over time
-- Export personality reports
-- Multiple insight surfacing
-- Contradiction tracking across time
-- Sentiment analysis trends
-- Privacy controls and data export
+- Trend tracking over time (visualizations of personality changes)
+- Export personality reports (PDF/JSON download)
+- Multiple insight surfacing (display multiple insights per category)
+- Contradiction tracking across time (flag inconsistencies)
+- Sentiment analysis trends (mood tracking over journal entries)
+- Privacy controls and data export (GDPR compliance)
 - Error handling and retry logic for AI API failures
+- Email notifications for insights/reminders
+- Social sharing of anonymous personality summaries
 
 ## Development
 - Run: `npm run dev`
@@ -191,7 +193,9 @@ The app is designed to:
 ### General Architecture
 - PostgreSQL database with WebSocket support (Neon Serverless)
 - OpenAI integration uses Replit AI Integrations (charges billed to Replit credits)
+- Multi-user authentication via Replit Auth (OpenID Connect)
+- Complete data isolation per user across all tables
 - All personality analysis is client-triggered (no automatic background analysis)
 - Insights are generated one at a time per journal save
 - Dashboard personality analysis is cached until manually refreshed
-- Default user created automatically on first database access
+- Session-based authentication with PostgreSQL session storage
