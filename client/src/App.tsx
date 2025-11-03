@@ -9,6 +9,8 @@ import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Chat from "@/pages/Chat";
 import Journal from "@/pages/Journal";
+import Insights from "@/pages/Insights";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -26,6 +28,8 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/chat" component={Chat} />
       <Route path="/journal" component={Journal} />
+      <Route path="/insights" component={Insights} />
+      <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );
