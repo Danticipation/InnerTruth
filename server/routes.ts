@@ -52,6 +52,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertMessageSchema.parse(req.body);
+      
+      // Verify conversation belongs to authenticated user
+      const conversation = await storage.getConversation(validatedData.conversationId);
+      if (!conversation || conversation.userId !== userId) {
+        return res.status(403).json({ error: "Forbidden: conversation not found or access denied" });
+      }
+      
       const userMessage = await storage.createMessage(validatedData);
       
       const conversationHistory = await storage.getMessagesByConversationId(validatedData.conversationId);
@@ -114,6 +121,14 @@ Use these established facts to provide deeper, more personalized insights. Refer
 
   app.get("/api/messages/:conversationId", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      
+      // Verify conversation belongs to authenticated user
+      const conversation = await storage.getConversation(req.params.conversationId);
+      if (!conversation || conversation.userId !== userId) {
+        return res.status(403).json({ error: "Forbidden: conversation not found or access denied" });
+      }
+      
       const messages = await storage.getMessagesByConversationId(req.params.conversationId);
       res.json(messages);
     } catch (error: any) {

@@ -10,6 +10,7 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   
   createConversation(userId: string): Promise<Conversation>;
+  getConversation(id: string): Promise<Conversation | undefined>;
   getConversationsByUserId(userId: string): Promise<Conversation[]>;
   
   createMessage(message: InsertMessage): Promise<Message>;
@@ -81,6 +82,10 @@ export class MemStorage implements IStorage {
     };
     this.conversations.set(id, conversation);
     return conversation;
+  }
+
+  async getConversation(id: string): Promise<Conversation | undefined> {
+    return this.conversations.get(id);
   }
 
   async getConversationsByUserId(userId: string): Promise<Conversation[]> {
@@ -194,6 +199,11 @@ export class PostgresStorage implements IStorage {
 
   async createConversation(userId: string): Promise<Conversation> {
     const result = await db.insert(conversations).values({ userId }).returning();
+    return result[0];
+  }
+
+  async getConversation(id: string): Promise<Conversation | undefined> {
+    const result = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
     return result[0];
   }
 
