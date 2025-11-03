@@ -1,17 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Send, Sparkles } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-}
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import type { Message } from "@shared/schema";
 
 const suggestedPrompts = [
   "What's been on your mind lately?",
@@ -21,41 +17,55 @@ const suggestedPrompts = [
 ];
 
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
-      timestamp: new Date()
-    }
-  ]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    const createConversation = async () => {
+      const response = await fetch("/api/conversations", { method: "POST" });
+      const data = await response.json();
+      setConversationId(data.id);
+      
+      setMessages([{
+        id: "welcome",
+        conversationId: data.id,
+        role: "assistant",
+        content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
+        createdAt: new Date()
+      }]);
+    };
+    createConversation();
+  }, []);
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await apiRequest("POST", "/api/messages", {
+        conversationId,
+        role: "user",
+        content
+      });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setMessages(prev => [...prev, data.userMessage, data.aiMessage]);
+    }
+  });
 
   const handleSend = () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !conversationId) return;
     
     const userMessage: Message = {
       id: Date.now().toString(),
+      conversationId,
       role: "user",
       content: input,
-      timestamp: new Date()
+      createdAt: new Date()
     };
     
     setMessages(prev => [...prev, userMessage]);
     setInput("");
-    setIsTyping(true);
-    
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "That's an interesting perspective. Can you tell me more about what led you to feel that way?",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMessage]);
-      setIsTyping(false);
-    }, 1500);
+    sendMessageMutation.mutate(input);
   };
 
   const handlePromptClick = (prompt: string) => {
@@ -94,12 +104,12 @@ export function ChatInterface() {
                     <p className={`text-xs mt-2 ${
                       message.role === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
                     }`}>
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
               ))}
-              {isTyping && (
+              {sendMessageMutation.isPending && (
                 <div className="flex justify-start">
                   <div className="bg-muted rounded-lg p-4">
                     <p className="text-sm text-muted-foreground">AI is typing...</p>
@@ -127,7 +137,7 @@ export function ChatInterface() {
               />
               <Button
                 onClick={handleSend}
-                disabled={!input.trim()}
+                disabled={!input.trim() || sendMessageMutation.isPending}
                 size="icon"
                 className="h-auto"
                 data-testid="button-send-message"

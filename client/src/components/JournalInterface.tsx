@@ -5,6 +5,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Save, Lightbulb, Calendar } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { JournalEntry } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 const prompts = [
   "What challenged you today?",
@@ -13,35 +17,42 @@ const prompts = [
   "What emotions did you experience?"
 ];
 
-const previousEntries = [
-  {
-    id: "1",
-    date: "Nov 1, 2024",
-    preview: "Today I realized that I've been avoiding difficult conversations with my team. It's easier to...",
-    wordCount: 342
-  },
-  {
-    id: "2",
-    date: "Oct 31, 2024",
-    preview: "Reflecting on my relationship patterns, I notice I tend to be the one who always compromises...",
-    wordCount: 289
-  },
-  {
-    id: "3",
-    date: "Oct 30, 2024",
-    preview: "Had an interesting insight during meditation. I keep saying yes to things I don't want to do...",
-    wordCount: 412
-  }
-];
-
 export function JournalInterface() {
   const [entry, setEntry] = useState("");
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const { data: previousEntries = [] } = useQuery<JournalEntry[]>({
+    queryKey: ["/api/journal-entries"],
+  });
+
+  const saveEntryMutation = useMutation({
+    mutationFn: async () => {
+      const wordCount = entry.split(/\s+/).filter(w => w).length;
+      const res = await apiRequest("POST", "/api/journal-entries", {
+        userId: "default-user-id",
+        content: entry,
+        prompt: selectedPrompt,
+        wordCount
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
+      toast({
+        title: "Entry saved",
+        description: "Your journal entry has been saved and analyzed."
+      });
+      setEntry("");
+      setSelectedPrompt(null);
+    }
+  });
 
   const handleSave = () => {
-    console.log("Saving journal entry:", entry);
-    setEntry("");
-    setSelectedPrompt(null);
+    if (!entry.trim()) return;
+    saveEntryMutation.mutate();
   };
 
   return (
@@ -55,21 +66,13 @@ export function JournalInterface() {
             </CardTitle>
             <div className="flex gap-2">
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => console.log("Draft saved")}
-                data-testid="button-save-draft"
-              >
-                Save Draft
-              </Button>
-              <Button
                 size="sm"
                 onClick={handleSave}
-                disabled={!entry.trim()}
+                disabled={!entry.trim() || saveEntryMutation.isPending}
                 data-testid="button-save-entry"
               >
                 <Save className="mr-2 h-4 w-4" />
-                Save Entry
+                {saveEntryMutation.isPending ? "Saving..." : "Save Entry"}
               </Button>
             </div>
           </CardHeader>
@@ -134,17 +137,24 @@ export function JournalInterface() {
                   >
                     <CardContent className="pt-4 pb-3">
                       <div className="flex justify-between items-start mb-2">
-                        <p className="text-sm font-semibold">{prev.date}</p>
+                        <p className="text-sm font-semibold">
+                          {new Date(prev.createdAt).toLocaleDateString()}
+                        </p>
                         <Badge variant="secondary" className="text-xs">
                           {prev.wordCount} words
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2">
-                        {prev.preview}
+                        {prev.content.substring(0, 100)}...
                       </p>
                     </CardContent>
                   </Card>
                 ))}
+                {previousEntries.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No previous entries yet
+                  </p>
+                )}
               </div>
             </ScrollArea>
           </CardContent>
