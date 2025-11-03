@@ -227,6 +227,49 @@ Focus on insights that would genuinely surprise them or help them see something 
     }
   });
 
+  app.put("/api/journal-entries/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      
+      // Verify ownership
+      const entry = await storage.getJournalEntriesByUserId(userId).then(entries => 
+        entries.find(e => e.id === id)
+      );
+      
+      if (!entry) {
+        return res.status(404).json({ error: "Journal entry not found" });
+      }
+      
+      const validatedData = insertJournalEntrySchema.partial().parse(req.body);
+      const updatedEntry = await storage.updateJournalEntry(id, validatedData);
+      res.json(updatedEntry);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/journal-entries/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      
+      // Verify ownership
+      const entry = await storage.getJournalEntriesByUserId(userId).then(entries => 
+        entries.find(e => e.id === id)
+      );
+      
+      if (!entry) {
+        return res.status(404).json({ error: "Journal entry not found" });
+      }
+      
+      await storage.deleteJournalEntry(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/insights", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
