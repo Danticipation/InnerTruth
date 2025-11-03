@@ -1,7 +1,6 @@
 import { type User, type InsertUser, type Message, type InsertMessage, type JournalEntry, type InsertJournalEntry, type Conversation, type PersonalityInsight, type MemoryFact, type InsertMemoryFact, type MemoryFactMention, type InsertMemoryFactMention, type MemorySnapshot, type InsertMemorySnapshot } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { Pool } from "@neondatabase/serverless";
+import { db } from "./db";
 import { users, conversations, messages, journalEntries, personalityInsights, memoryFacts, memoryFactMentions, memorySnapshots } from "@shared/schema";
 import { eq, desc, and, sql as drizzleSql } from "drizzle-orm";
 
@@ -171,33 +170,19 @@ export class MemStorage implements IStorage {
 }
 
 export class PostgresStorage implements IStorage {
-  private db: ReturnType<typeof drizzle>;
   private defaultUserInitialized = false;
 
   constructor() {
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    this.db = drizzle(pool, {
-      schema: {
-        users,
-        conversations,
-        messages,
-        journalEntries,
-        personalityInsights,
-        memoryFacts,
-        memoryFactMentions,
-        memorySnapshots
-      }
-    });
   }
 
   private async ensureDefaultUser() {
     if (this.defaultUserInitialized) return;
     
     try {
-      const existingUser = await this.db.select().from(users).where(eq(users.username, "demo")).limit(1);
+      const existingUser = await db.select().from(users).where(eq(users.username, "demo")).limit(1);
 
       if (existingUser.length === 0) {
-        await this.db.insert(users).values({
+        await db.insert(users).values({
           id: "default-user-id",
           username: "demo",
           password: "demo"
@@ -211,72 +196,72 @@ export class PostgresStorage implements IStorage {
 
   async getUser(id: string): Promise<User | undefined> {
     await this.ensureDefaultUser();
-    const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     await this.ensureDefaultUser();
-    const result = await this.db.select().from(users).where(eq(users.username, username)).limit(1);
+    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
     return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await this.db.insert(users).values(insertUser).returning();
+    const result = await db.insert(users).values(insertUser).returning();
     return result[0];
   }
 
   async createConversation(userId: string): Promise<Conversation> {
-    const result = await this.db.insert(conversations).values({ userId }).returning();
+    const result = await db.insert(conversations).values({ userId }).returning();
     return result[0];
   }
 
   async getConversationsByUserId(userId: string): Promise<Conversation[]> {
-    return await this.db.select().from(conversations)
+    return await db.select().from(conversations)
       .where(eq(conversations.userId, userId))
       .orderBy(desc(conversations.createdAt));
   }
 
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const result = await this.db.insert(messages).values(insertMessage).returning();
+    const result = await db.insert(messages).values(insertMessage).returning();
     return result[0];
   }
 
   async getMessagesByConversationId(conversationId: string): Promise<Message[]> {
-    return await this.db.select().from(messages)
+    return await db.select().from(messages)
       .where(eq(messages.conversationId, conversationId))
       .orderBy(messages.createdAt);
   }
 
   async createJournalEntry(insertEntry: InsertJournalEntry): Promise<JournalEntry> {
-    const result = await this.db.insert(journalEntries).values(insertEntry).returning();
+    const result = await db.insert(journalEntries).values(insertEntry).returning();
     return result[0];
   }
 
   async getJournalEntriesByUserId(userId: string): Promise<JournalEntry[]> {
-    return await this.db.select().from(journalEntries)
+    return await db.select().from(journalEntries)
       .where(eq(journalEntries.userId, userId))
       .orderBy(desc(journalEntries.createdAt));
   }
 
   async getPersonalityInsightsByUserId(userId: string): Promise<PersonalityInsight[]> {
-    return await this.db.select().from(personalityInsights)
+    return await db.select().from(personalityInsights)
       .where(eq(personalityInsights.userId, userId))
       .orderBy(desc(personalityInsights.createdAt));
   }
 
   async createPersonalityInsight(insertInsight: Omit<PersonalityInsight, "id" | "createdAt">): Promise<PersonalityInsight> {
-    const result = await this.db.insert(personalityInsights).values(insertInsight).returning();
+    const result = await db.insert(personalityInsights).values(insertInsight).returning();
     return result[0];
   }
 
   async createMemoryFact(insertFact: InsertMemoryFact): Promise<MemoryFact> {
-    const result = await this.db.insert(memoryFacts).values(insertFact).returning();
+    const result = await db.insert(memoryFacts).values(insertFact).returning();
     return result[0];
   }
 
   async getMemoryFactsByUserId(userId: string, limit: number = 100): Promise<MemoryFact[]> {
-    return await this.db.select().from(memoryFacts)
+    return await db.select().from(memoryFacts)
       .where(and(
         eq(memoryFacts.userId, userId),
         eq(memoryFacts.status, 'active')
@@ -286,7 +271,7 @@ export class PostgresStorage implements IStorage {
   }
 
   async updateMemoryFactConfidence(factId: string, confidence: number): Promise<void> {
-    await this.db
+    await db
       .update(memoryFacts)
       .set({ 
         confidence,
@@ -296,23 +281,23 @@ export class PostgresStorage implements IStorage {
   }
 
   async createMemoryFactMention(insertMention: InsertMemoryFactMention): Promise<MemoryFactMention> {
-    const result = await this.db.insert(memoryFactMentions).values(insertMention).returning();
+    const result = await db.insert(memoryFactMentions).values(insertMention).returning();
     return result[0];
   }
 
   async getMemoryFactMentionsByFactId(factId: string): Promise<MemoryFactMention[]> {
-    return await this.db.select().from(memoryFactMentions)
+    return await db.select().from(memoryFactMentions)
       .where(eq(memoryFactMentions.factId, factId))
       .orderBy(desc(memoryFactMentions.createdAt));
   }
 
   async createMemorySnapshot(insertSnapshot: InsertMemorySnapshot): Promise<MemorySnapshot> {
-    const result = await this.db.insert(memorySnapshots).values(insertSnapshot).returning();
+    const result = await db.insert(memorySnapshots).values(insertSnapshot).returning();
     return result[0];
   }
 
   async getLatestMemorySnapshotByUserId(userId: string, snapshotType: string): Promise<MemorySnapshot | undefined> {
-    const result = await this.db.select().from(memorySnapshots)
+    const result = await db.select().from(memorySnapshots)
       .where(and(
         eq(memorySnapshots.userId, userId),
         eq(memorySnapshots.snapshotType, snapshotType)

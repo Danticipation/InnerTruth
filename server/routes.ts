@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMessageSchema, insertJournalEntrySchema, type Message } from "@shared/schema";
 import OpenAI from "openai";
+import { memoryService } from "./memory-service";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -38,6 +39,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const conversationHistory = await storage.getMessagesByConversationId(validatedData.conversationId);
       
+      const memoryContext = await memoryService.getMemoryContext(DEFAULT_USER_ID);
+      
       const systemPrompt = `You are a direct, insightful AI personality analyst. Your role is to help users discover the hard truth about themselves. You are:
 1. Empathetic but honest - don't sugarcoat observations
 2. Pattern-focused - actively identify contradictions, recurring themes, and behavioral patterns
@@ -52,7 +55,11 @@ Your style:
 - Balance truth-telling with compassion - be direct, not harsh
 - Keep responses 2-4 sentences with one powerful question
 
-Your goal is to be the honest mirror users need, not the gentle validation they want.`;
+Your goal is to be the honest mirror users need, not the gentle validation they want.
+
+${memoryContext}
+
+Use these established facts to provide deeper, more personalized insights. Reference specific patterns or details you know about the user.`;
 
       const messages = [
         { role: "system" as const, content: systemPrompt },
@@ -76,6 +83,10 @@ Your goal is to be the honest mirror users need, not the gentle validation they 
         role: "assistant",
         content: aiResponse
       });
+
+      memoryService.extractFactsFromMessages(DEFAULT_USER_ID, conversationHistory).catch(err => 
+        console.error("Error extracting facts from messages:", err)
+      );
 
       res.json({ userMessage, aiMessage });
     } catch (error: any) {
@@ -161,6 +172,10 @@ Focus on insights that would genuinely surprise them or help them see something 
           console.error("Error generating insight:", analysisError);
         }
       }
+      
+      memoryService.extractFactsFromJournal(DEFAULT_USER_ID, entry).catch(err => 
+        console.error("Error extracting facts from journal:", err)
+      );
       
       res.json(entry);
     } catch (error: any) {
