@@ -1,10 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMessageSchema, insertJournalEntrySchema, type Message } from "@shared/schema";
+import { insertMessageSchema, insertJournalEntrySchema, insertMoodEntrySchema, type Message } from "@shared/schema";
 import OpenAI from "openai";
 import { memoryService } from "./memory-service";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { comprehensiveAnalytics } from "./comprehensive-analytics";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -343,6 +344,81 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
         streak,
         profileCompletion: Math.min(100, (conversations.length * 5) + (journalEntries.length * 10))
       });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mood entry endpoints
+  app.post("/api/mood-entries", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = insertMoodEntrySchema.parse(req.body);
+      const entry = await storage.createMoodEntry({ ...validatedData, userId });
+      res.json(entry);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/mood-entries", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const entries = await storage.getMoodEntriesByUserId(userId);
+      res.json(entries);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Comprehensive personality reflection endpoint
+  app.post("/api/personality-reflection", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Generate comprehensive profile
+      const profile = await comprehensiveAnalytics.generatePersonalityProfile(userId);
+      
+      if (!profile) {
+        return res.status(400).json({ 
+          error: "Not enough data for comprehensive analysis. Continue journaling, chatting, and tracking moods to build your profile." 
+        });
+      }
+
+      // Save the reflection
+      const reflection = await storage.createPersonalityReflection({
+        userId,
+        summary: profile.summary,
+        coreTraits: profile.coreTraits,
+        behavioralPatterns: profile.behavioralPatterns,
+        emotionalPatterns: profile.emotionalPatterns,
+        relationshipDynamics: profile.relationshipDynamics,
+        copingMechanisms: profile.copingMechanisms,
+        growthAreas: profile.growthAreas,
+        strengths: profile.strengths,
+        blindSpots: profile.blindSpots,
+        valuesAndBeliefs: profile.valuesAndBeliefs,
+        therapeuticInsights: profile.therapeuticInsights,
+        statistics: profile.statistics,
+      });
+
+      res.json(reflection);
+    } catch (error: any) {
+      console.error("Error generating personality reflection:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/personality-reflection", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reflection = await storage.getLatestPersonalityReflection(userId);
+      
+      if (!reflection) {
+        return res.status(404).json({ error: "No personality reflection found. Generate one first." });
+      }
+
+      res.json(reflection);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

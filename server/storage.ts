@@ -179,6 +179,22 @@ export class MemStorage implements IStorage {
   async getLatestMemorySnapshotByUserId(userId: string, snapshotType: string): Promise<MemorySnapshot | undefined> {
     return undefined;
   }
+
+  async createMoodEntry(entry: InsertMoodEntry & { userId: string }): Promise<MoodEntry> {
+    throw new Error("Mood entries not supported in MemStorage");
+  }
+
+  async getMoodEntriesByUserId(userId: string): Promise<MoodEntry[]> {
+    return [];
+  }
+
+  async createPersonalityReflection(reflection: InsertPersonalityReflection & { userId: string }): Promise<PersonalityReflection> {
+    throw new Error("Personality reflections not supported in MemStorage");
+  }
+
+  async getLatestPersonalityReflection(userId: string): Promise<PersonalityReflection | undefined> {
+    return undefined;
+  }
 }
 
 export class PostgresStorage implements IStorage {
