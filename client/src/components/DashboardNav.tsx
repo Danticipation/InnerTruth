@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "./ThemeToggle";
-import { Home, MessageSquare, BookOpen, BarChart3, User } from "lucide-react";
+import { Home, MessageSquare, BookOpen, BarChart3, Brain, User } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Logo } from "./Logo";
 
@@ -10,6 +10,7 @@ const navItems = [
   { path: "/chat", label: "Chat", icon: MessageSquare },
   { path: "/journal", label: "Journal", icon: BookOpen },
   { path: "/insights", label: "Insights", icon: BarChart3 },
+  { path: "/reflection", label: "Reflection", icon: Brain },
   { path: "/profile", label: "Profile", icon: User },
 ];
 

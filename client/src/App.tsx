@@ -10,6 +10,7 @@ import Dashboard from "@/pages/Dashboard";
 import Chat from "@/pages/Chat";
 import Journal from "@/pages/Journal";
 import Insights from "@/pages/Insights";
+import PersonalityReflection from "@/pages/PersonalityReflection";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/chat" component={Chat} />
       <Route path="/journal" component={Journal} />
       <Route path="/insights" component={Insights} />
+      <Route path="/reflection" component={PersonalityReflection} />
       <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
