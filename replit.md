@@ -50,7 +50,8 @@ Mirror is an AI-powered personality analysis application that helps users discov
 - **Frontend**: React, TypeScript, Tailwind CSS, Shadcn UI
 - **Backend**: Express.js, TypeScript
 - **AI**: OpenAI GPT-4o via Replit AI Integrations (no API key required)
-- **Storage**: In-memory storage (MemStorage)
+- **Database**: PostgreSQL via Neon Serverless (persistent storage)
+- **ORM**: Drizzle ORM with migrations
 - **State Management**: TanStack Query (React Query)
 
 ### API Endpoints
@@ -64,14 +65,27 @@ Mirror is an AI-powered personality analysis application that helps users discov
 
 ### Data Model
 ```typescript
+- Users: Basic user data (currently using default user)
 - Conversations: User chat sessions
 - Messages: Individual chat messages (user/assistant)
 - Journal Entries: Daily reflections with word count
 - Personality Insights: AI-generated observations
-- Users: Basic user data (currently using default user)
+- Memory Facts: Extracted factual knowledge about the user
+- Memory Fact Mentions: Evidence linking facts to specific messages/journals
+- Memory Snapshots: Periodic summaries of memory state (schema ready, not yet used)
 ```
 
-## Recent Changes
+## Recent Changes (November 2025)
+
+### Persistent Memory System (MAJOR)
+- **Migrated to PostgreSQL**: All data now persists permanently (no more data loss on restart)
+- **AI Memory Extraction**: GPT-4o automatically extracts facts from every conversation and journal entry
+- **Intelligent Deduplication**: Similar facts increase confidence scores rather than creating duplicates
+- **Memory Context Injection**: AI receives up to 20 categorized facts in every prompt for personalized responses
+- **Evidence Tracking**: Each fact links to source messages/journals with excerpts for traceability
+- **Progressive Learning**: Memory builds cumulatively day-by-day across sessions
+
+### Earlier Changes
 - Upgraded chat AI from gpt-4o-mini to gpt-4o for deeper conversations
 - Enhanced chat prompt to be more direct and confrontational
 - Improved journal analysis to cross-reference conversations
@@ -81,20 +95,23 @@ Mirror is an AI-powered personality analysis application that helps users discov
 - Fixed pluralization bug in streak display
 
 ## Future Enhancements (Not Yet Implemented)
+- Semantic embeddings for better memory deduplication
+- Memory snapshot generation to prevent prompt bloat at scale
 - Personality questionnaires
-- User authentication system
-- Persistent database (PostgreSQL)
+- User authentication system (multi-user support)
 - Trend tracking over time
 - Export personality reports
 - Multiple insight surfacing
 - Contradiction tracking across time
 - Sentiment analysis trends
 - Privacy controls and data export
+- Error handling and retry logic for AI API failures
 
 ## Development
 - Run: `npm run dev`
+- Database: `npm run db:push` (push schema changes)
 - Default user ID: `default-user-id`
-- Data persists during server runtime only
+- Data persists in PostgreSQL across restarts
 - Workflow auto-restarts on code changes
 
 ## User Experience
@@ -106,8 +123,18 @@ The app is designed to:
 5. Help users discover blind spots they genuinely didn't know about
 
 ## Architecture Notes
-- In-memory storage means data resets on server restart
+
+### Memory System Architecture
+- **Fact Extraction**: Fire-and-forget async GPT-4o calls after each message/journal
+- **Storage**: PostgreSQL with Drizzle ORM, facts categorized by type (personal_info, work_career, relationships, etc.)
+- **Retrieval**: Top 20 facts by confidence, grouped by category, injected into AI system prompts
+- **Deduplication**: Similarity threshold (0.8) detects similar facts, boosts confidence instead of duplicating
+- **Evidence**: Each fact stores source IDs and text excerpts for traceability
+
+### General Architecture
+- PostgreSQL database with WebSocket support (Neon Serverless)
 - OpenAI integration uses Replit AI Integrations (charges billed to Replit credits)
 - All personality analysis is client-triggered (no automatic background analysis)
 - Insights are generated one at a time per journal save
 - Dashboard personality analysis is cached until manually refreshed
+- Default user created automatically on first database access
