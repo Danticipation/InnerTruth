@@ -94,7 +94,7 @@ export default function PersonalityReflection() {
 
   const generateMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/personality-reflection", "POST");
+      return await apiRequest("POST", "/api/personality-reflection");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/personality-reflection"] });
