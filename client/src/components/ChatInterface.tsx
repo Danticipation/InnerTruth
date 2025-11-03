@@ -3,11 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, Plus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import type { Message } from "@shared/schema";
+import type { Message, Conversation } from "@shared/schema";
 
 const suggestedPrompts = [
   "What's been on your mind lately?",
@@ -17,10 +17,17 @@ const suggestedPrompts = [
 ];
 
 export function ChatInterface() {
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(() => {
+    return sessionStorage.getItem("currentConversationId");
+  });
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [isInitialized, setIsInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { data: conversations, isLoading } = useQuery<Conversation[]>({
+    queryKey: ["/api/conversations"]
+  });
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
@@ -45,21 +52,71 @@ export function ChatInterface() {
   }, [messages, sendMessageMutation.isPending]);
 
   useEffect(() => {
-    const createConversation = async () => {
-      const response = await fetch("/api/conversations", { method: "POST" });
-      const data = await response.json();
-      setConversationId(data.id);
+    const loadOrCreateConversation = async () => {
+      if (!conversations || isInitialized) return;
+
+      // Priority 1: Check if we have a stored conversation ID that still exists
+      const storedId = sessionStorage.getItem("currentConversationId");
+      if (storedId && conversations.some(c => c.id === storedId)) {
+        setConversationId(storedId);
+        
+        const messagesRes = await fetch(`/api/messages/${storedId}`);
+        const loadedMessages: Message[] = await messagesRes.json();
+        
+        if (loadedMessages.length > 0) {
+          setMessages(loadedMessages);
+        } else {
+          setMessages([{
+            id: "welcome",
+            conversationId: storedId,
+            role: "assistant",
+            content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
+            createdAt: new Date()
+          }]);
+        }
+      } else if (conversations.length > 0) {
+        // Priority 2: Load most recent conversation if no valid stored ID
+        const mostRecent = conversations[0];
+        setConversationId(mostRecent.id);
+        sessionStorage.setItem("currentConversationId", mostRecent.id);
+        
+        const messagesRes = await fetch(`/api/messages/${mostRecent.id}`);
+        const loadedMessages: Message[] = await messagesRes.json();
+        
+        if (loadedMessages.length > 0) {
+          setMessages(loadedMessages);
+        } else {
+          setMessages([{
+            id: "welcome",
+            conversationId: mostRecent.id,
+            role: "assistant",
+            content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
+            createdAt: new Date()
+          }]);
+        }
+      } else {
+        // Priority 3: Create new conversation only if absolutely none exist
+        const response = await fetch("/api/conversations", { method: "POST" });
+        const data = await response.json();
+        setConversationId(data.id);
+        sessionStorage.setItem("currentConversationId", data.id);
+        
+        setMessages([{
+          id: "welcome",
+          conversationId: data.id,
+          role: "assistant",
+          content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
+          createdAt: new Date()
+        }]);
+      }
       
-      setMessages([{
-        id: "welcome",
-        conversationId: data.id,
-        role: "assistant",
-        content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
-        createdAt: new Date()
-      }]);
+      setIsInitialized(true);
     };
-    createConversation();
-  }, []);
+
+    if (conversations !== undefined && !isInitialized) {
+      loadOrCreateConversation();
+    }
+  }, [conversations, isInitialized]);
 
   const handleSend = () => {
     if (!input.trim() || !conversationId) return;
@@ -81,6 +138,31 @@ export function ChatInterface() {
     setInput(prompt);
   };
 
+  const handleNewConversation = async () => {
+    setIsInitialized(false);  // Reset to allow reinitialization with new conversation
+    const response = await fetch("/api/conversations", { method: "POST" });
+    const data = await response.json();
+    setConversationId(data.id);
+    sessionStorage.setItem("currentConversationId", data.id);
+    
+    setMessages([{
+      id: "welcome",
+      conversationId: data.id,
+      role: "assistant",
+      content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
+      createdAt: new Date()
+    }]);
+    setIsInitialized(true);  // Mark as initialized again
+  };
+
+  if (isLoading || !isInitialized) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading conversation...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card data-testid="card-chat-interface">
@@ -89,8 +171,14 @@ export function ChatInterface() {
             <Sparkles className="h-5 w-5 text-primary" />
             AI Conversation
           </CardTitle>
-          <Button variant="outline" size="sm" data-testid="button-save-conversation">
-            Save Conversation
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleNewConversation}
+            data-testid="button-new-conversation"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            New Chat
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
