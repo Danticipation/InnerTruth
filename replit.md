@@ -77,6 +77,16 @@ Mirror is an AI-powered personality analysis application that helps users discov
 
 ## Recent Changes (November 2025)
 
+### Multi-User Authentication & Data Isolation (CRITICAL SECURITY)
+- **Replit Auth Integration**: OpenID Connect with Google, GitHub, X, Apple, email/password login
+- **Session Management**: PostgreSQL-backed sessions with 7-day TTL and secure httpOnly cookies
+- **Complete Data Isolation**: All queries scoped to authenticated user ID (req.user.claims.sub)
+- **Landing Page**: Unauthenticated users see landing page with login options
+- **Protected Routes**: All API endpoints require authentication via isAuthenticated middleware
+- **Ownership Verification**: Conversation/message access verified before allowing read/write
+- **Server-Side Security**: userId injected server-side for journals/insights (cannot be forged by client)
+- **Type Safety**: Separate schemas for client validation vs server operations ensure security
+
 ### Persistent Memory System (MAJOR)
 - **Migrated to PostgreSQL**: All data now persists permanently (no more data loss on restart)
 - **AI Memory Extraction**: GPT-4o automatically extracts facts from every conversation and journal entry
@@ -84,6 +94,7 @@ Mirror is an AI-powered personality analysis application that helps users discov
 - **Memory Context Injection**: AI receives up to 20 categorized facts in every prompt for personalized responses
 - **Evidence Tracking**: Each fact links to source messages/journals with excerpts for traceability
 - **Progressive Learning**: Memory builds cumulatively day-by-day across sessions
+- **Per-User Memory**: Memory facts completely isolated per authenticated user
 
 ### Earlier Changes
 - Upgraded chat AI from gpt-4o-mini to gpt-4o for deeper conversations
@@ -110,9 +121,19 @@ Mirror is an AI-powered personality analysis application that helps users discov
 ## Development
 - Run: `npm run dev`
 - Database: `npm run db:push` (push schema changes)
-- Default user ID: `default-user-id`
+- Authentication: Use /api/login to authenticate (supports Google, GitHub, X, Apple, email/password)
 - Data persists in PostgreSQL across restarts
 - Workflow auto-restarts on code changes
+- Sessions stored in PostgreSQL with 7-day TTL
+
+## Security Architecture
+- **Authentication**: Replit Auth with OpenID Connect (passport.js)
+- **Session Storage**: PostgreSQL sessions table with secure cookies
+- **Authorization**: isAuthenticated middleware on all protected routes
+- **Data Scoping**: All queries filter by req.user.claims.sub (authenticated user ID)
+- **Ownership Checks**: Conversations verified before message access
+- **Input Validation**: Zod schemas prevent userId forgery (omitted from client schemas, injected server-side)
+- **Error Handling**: 401 errors redirect to login, 403 errors block unauthorized access
 
 ## User Experience
 The app is designed to:
