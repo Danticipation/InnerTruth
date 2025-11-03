@@ -4,11 +4,29 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Save, Lightbulb, Calendar } from "lucide-react";
+import { Save, Lightbulb, Calendar, Pencil, Trash2, X } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { JournalEntry } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const prompts = [
   "What challenged you today?",
@@ -20,6 +38,9 @@ const prompts = [
 export function JournalInterface() {
   const [entry, setEntry] = useState("");
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [deletingEntry, setDeletingEntry] = useState<JournalEntry | null>(null);
   const { toast } = useToast();
 
   const { data: previousEntries = [] } = useQuery<JournalEntry[]>({
@@ -47,6 +68,42 @@ export function JournalInterface() {
       });
       setEntry("");
       setSelectedPrompt(null);
+    }
+  });
+
+  const updateEntryMutation = useMutation({
+    mutationFn: async ({ id, content }: { id: string; content: string }) => {
+      const wordCount = content.split(/\s+/).filter(w => w).length;
+      const res = await apiRequest("PUT", `/api/journal-entries/${id}`, {
+        content,
+        wordCount
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
+      toast({
+        title: "Entry updated",
+        description: "Your journal entry has been updated."
+      });
+      setEditingEntry(null);
+      setEditContent("");
+    }
+  });
+
+  const deleteEntryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/journal-entries/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({
+        title: "Entry deleted",
+        description: "Your journal entry has been deleted."
+      });
+      setDeletingEntry(null);
     }
   });
 
@@ -132,7 +189,7 @@ export function JournalInterface() {
                 {previousEntries.map((prev) => (
                   <Card
                     key={prev.id}
-                    className="hover-elevate active-elevate-2 cursor-pointer"
+                    className="hover-elevate"
                     data-testid={`card-entry-${prev.id}`}
                   >
                     <CardContent className="pt-4 pb-3">
@@ -140,9 +197,30 @@ export function JournalInterface() {
                         <p className="text-sm font-semibold">
                           {new Date(prev.createdAt).toLocaleDateString()}
                         </p>
-                        <Badge variant="secondary" className="text-xs">
-                          {prev.wordCount} words
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {prev.wordCount} words
+                          </Badge>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingEntry(prev);
+                              setEditContent(prev.content);
+                            }}
+                            data-testid={`button-edit-${prev.id}`}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setDeletingEntry(prev)}
+                            data-testid={`button-delete-${prev.id}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {prev.content.substring(0, 100)}...
@@ -160,6 +238,80 @@ export function JournalInterface() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Journal Entry</DialogTitle>
+            <DialogDescription>
+              {editingEntry && new Date(editingEntry.createdAt).toLocaleDateString()}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            className="min-h-[300px] resize-none font-serif text-base"
+            data-testid="textarea-edit-entry"
+          />
+          <div className="text-sm text-muted-foreground">
+            {editContent.split(/\s+/).filter(w => w).length} words
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingEntry(null)}
+              data-testid="button-cancel-edit"
+            >
+              <X className="mr-2 h-4 w-4" />
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (editingEntry && editContent.trim()) {
+                  updateEntryMutation.mutate({
+                    id: editingEntry.id,
+                    content: editContent
+                  });
+                }
+              }}
+              disabled={!editContent.trim() || updateEntryMutation.isPending}
+              data-testid="button-save-edit"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {updateEntryMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingEntry} onOpenChange={(open) => !open && setDeletingEntry(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Journal Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this journal entry from{" "}
+              {deletingEntry && new Date(deletingEntry.createdAt).toLocaleDateString()}?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletingEntry) {
+                  deleteEntryMutation.mutate(deletingEntry.id);
+                }
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteEntryMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
