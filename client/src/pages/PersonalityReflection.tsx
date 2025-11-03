@@ -114,7 +114,11 @@ export default function PersonalityReflection() {
     );
   }
 
-  if (error) {
+  // Check if error is a 404 (no reflection found yet) - treat as empty state
+  const is404 = error instanceof Error && 
+    (error.message.includes("404") || error.message.includes("No personality reflection found"));
+
+  if (error && !is404) {
     const errorMessage = error instanceof Error ? error.message : "Failed to load personality reflection";
     return (
       <div className="min-h-screen bg-background">
