@@ -4,42 +4,59 @@ import { storage } from "./storage";
 import { insertMessageSchema, insertJournalEntrySchema, type Message } from "@shared/schema";
 import OpenAI from "openai";
 import { memoryService } from "./memory-service";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
-const DEFAULT_USER_ID = "default-user-id";
-
 export async function registerRoutes(app: Express): Promise<Server> {
-  
-  app.post("/api/conversations", async (req, res) => {
+  // Setup Replit Auth
+  await setupAuth(app);
+
+  // Auth endpoint - check if user is authenticated
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const conversation = await storage.createConversation(DEFAULT_USER_ID);
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error: any) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+  
+  // Protected routes - all require authentication
+  app.post("/api/conversations", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const conversation = await storage.createConversation(userId);
       res.json(conversation);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.get("/api/conversations", async (req, res) => {
+  app.get("/api/conversations", isAuthenticated, async (req: any, res) => {
     try {
-      const conversations = await storage.getConversationsByUserId(DEFAULT_USER_ID);
+      const userId = req.user.claims.sub;
+      const conversations = await storage.getConversationsByUserId(userId);
       res.json(conversations);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.post("/api/messages", async (req, res) => {
+  app.post("/api/messages", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const validatedData = insertMessageSchema.parse(req.body);
       const userMessage = await storage.createMessage(validatedData);
       
       const conversationHistory = await storage.getMessagesByConversationId(validatedData.conversationId);
       
-      const memoryContext = await memoryService.getMemoryContext(DEFAULT_USER_ID);
+      const memoryContext = await memoryService.getMemoryContext(userId);
       
       const systemPrompt = `You are a direct, insightful AI personality analyst. Your role is to help users discover the hard truth about themselves. You are:
 1. Empathetic but honest - don't sugarcoat observations
@@ -84,7 +101,7 @@ Use these established facts to provide deeper, more personalized insights. Refer
         content: aiResponse
       });
 
-      memoryService.extractFactsFromMessages(DEFAULT_USER_ID, conversationHistory).catch(err => 
+      memoryService.extractFactsFromMessages(userId, conversationHistory).catch(err => 
         console.error("Error extracting facts from messages:", err)
       );
 
@@ -95,7 +112,7 @@ Use these established facts to provide deeper, more personalized insights. Refer
     }
   });
 
-  app.get("/api/messages/:conversationId", async (req, res) => {
+  app.get("/api/messages/:conversationId", isAuthenticated, async (req: any, res) => {
     try {
       const messages = await storage.getMessagesByConversationId(req.params.conversationId);
       res.json(messages);
@@ -104,13 +121,14 @@ Use these established facts to provide deeper, more personalized insights. Refer
     }
   });
 
-  app.post("/api/journal-entries", async (req, res) => {
+  app.post("/api/journal-entries", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const validatedData = insertJournalEntrySchema.parse(req.body);
       const entry = await storage.createJournalEntry(validatedData);
       
-      const allEntries = await storage.getJournalEntriesByUserId(DEFAULT_USER_ID);
-      const conversations = await storage.getConversationsByUserId(DEFAULT_USER_ID);
+      const allEntries = await storage.getJournalEntriesByUserId(userId);
+      const conversations = await storage.getConversationsByUserId(userId);
       
       if (allEntries.length >= 2) {
         const entriesText = allEntries.slice(0, 10).map(e => 
@@ -161,7 +179,7 @@ Focus on insights that would genuinely surprise them or help them see something 
           
           if (insight.title && insight.description) {
             await storage.createPersonalityInsight({
-              userId: DEFAULT_USER_ID,
+              userId,
               insightType: insight.insightType || "growth_opportunity",
               title: insight.title,
               description: insight.description,
@@ -173,7 +191,7 @@ Focus on insights that would genuinely surprise them or help them see something 
         }
       }
       
-      memoryService.extractFactsFromJournal(DEFAULT_USER_ID, entry).catch(err => 
+      memoryService.extractFactsFromJournal(userId, entry).catch(err => 
         console.error("Error extracting facts from journal:", err)
       );
       
@@ -183,28 +201,31 @@ Focus on insights that would genuinely surprise them or help them see something 
     }
   });
 
-  app.get("/api/journal-entries", async (req, res) => {
+  app.get("/api/journal-entries", isAuthenticated, async (req: any, res) => {
     try {
-      const entries = await storage.getJournalEntriesByUserId(DEFAULT_USER_ID);
+      const userId = req.user.claims.sub;
+      const entries = await storage.getJournalEntriesByUserId(userId);
       res.json(entries);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.get("/api/insights", async (req, res) => {
+  app.get("/api/insights", isAuthenticated, async (req: any, res) => {
     try {
-      const insights = await storage.getPersonalityInsightsByUserId(DEFAULT_USER_ID);
+      const userId = req.user.claims.sub;
+      const insights = await storage.getPersonalityInsightsByUserId(userId);
       res.json(insights);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.post("/api/analyze-personality", async (req, res) => {
+  app.post("/api/analyze-personality", isAuthenticated, async (req: any, res) => {
     try {
-      const conversations = await storage.getConversationsByUserId(DEFAULT_USER_ID);
-      const journalEntries = await storage.getJournalEntriesByUserId(DEFAULT_USER_ID);
+      const userId = req.user.claims.sub;
+      const conversations = await storage.getConversationsByUserId(userId);
+      const journalEntries = await storage.getJournalEntriesByUserId(userId);
       
       if (conversations.length === 0 && journalEntries.length === 0) {
         return res.status(400).json({ error: "Not enough data for analysis. Chat or journal first." });
@@ -273,11 +294,12 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
     }
   });
 
-  app.get("/api/stats", async (req, res) => {
+  app.get("/api/stats", isAuthenticated, async (req: any, res) => {
     try {
-      const conversations = await storage.getConversationsByUserId(DEFAULT_USER_ID);
-      const journalEntries = await storage.getJournalEntriesByUserId(DEFAULT_USER_ID);
-      const insights = await storage.getPersonalityInsightsByUserId(DEFAULT_USER_ID);
+      const userId = req.user.claims.sub;
+      const conversations = await storage.getConversationsByUserId(userId);
+      const journalEntries = await storage.getJournalEntriesByUserId(userId);
+      const insights = await storage.getPersonalityInsightsByUserId(userId);
       
       const sortedEntries = [...journalEntries].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
       let streak = 0;

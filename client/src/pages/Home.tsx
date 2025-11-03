@@ -8,6 +8,7 @@ import { Footer } from "@/components/Footer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { LogOut } from "lucide-react";
 
 export default function Home() {
   return (
@@ -18,8 +19,13 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Link href="/dashboard">
-              <Button data-testid="button-enter-app">Enter App</Button>
+              <Button variant="default" data-testid="button-enter-app">Enter App</Button>
             </Link>
+            <Button variant="ghost" size="icon" asChild data-testid="button-logout">
+              <a href="/api/logout" title="Sign Out">
+                <LogOut className="w-4 h-4" />
+              </a>
+            </Button>
           </div>
         </div>
       </header>

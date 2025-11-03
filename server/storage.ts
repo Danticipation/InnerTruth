@@ -1,13 +1,13 @@
-import { type User, type InsertUser, type Message, type InsertMessage, type JournalEntry, type InsertJournalEntry, type Conversation, type PersonalityInsight, type MemoryFact, type InsertMemoryFact, type MemoryFactMention, type InsertMemoryFactMention, type MemorySnapshot, type InsertMemorySnapshot } from "@shared/schema";
+import { type User, type UpsertUser, type Message, type InsertMessage, type JournalEntry, type InsertJournalEntry, type Conversation, type PersonalityInsight, type MemoryFact, type InsertMemoryFact, type MemoryFactMention, type InsertMemoryFactMention, type MemorySnapshot, type InsertMemorySnapshot } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { users, conversations, messages, journalEntries, personalityInsights, memoryFacts, memoryFactMentions, memorySnapshots } from "@shared/schema";
 import { eq, desc, and, sql as drizzleSql } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
   
   createConversation(userId: string): Promise<Conversation>;
   getConversationsByUserId(userId: string): Promise<Conversation[]>;
@@ -38,6 +38,9 @@ export class MemStorage implements IStorage {
   private messages: Map<string, Message>;
   private journalEntries: Map<string, JournalEntry>;
   private personalityInsights: Map<string, PersonalityInsight>;
+  private memoryFacts: Map<string, MemoryFact>;
+  private memoryFactMentions: Map<string, MemoryFactMention>;
+  private memorySnapshots: Map<string, MemorySnapshot>;
 
   constructor() {
     this.users = new Map();
@@ -45,29 +48,27 @@ export class MemStorage implements IStorage {
     this.messages = new Map();
     this.journalEntries = new Map();
     this.personalityInsights = new Map();
-    
-    const defaultUserId = "default-user-id";
-    this.users.set(defaultUserId, {
-      id: defaultUserId,
-      username: "demo",
-      password: "demo"
-    });
+    this.memoryFacts = new Map();
+    this.memoryFactMentions = new Map();
+    this.memorySnapshots = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const existingUser = userData.id ? this.users.get(userData.id) : undefined;
+    const user: User = {
+      id: userData.id || randomUUID(),
+      email: userData.email || null,
+      firstName: userData.firstName || null,
+      lastName: userData.lastName || null,
+      profileImageUrl: userData.profileImageUrl || null,
+      createdAt: existingUser?.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
+    this.users.set(user.id, user);
     return user;
   }
 
@@ -170,45 +171,25 @@ export class MemStorage implements IStorage {
 }
 
 export class PostgresStorage implements IStorage {
-  private defaultUserInitialized = false;
-
-  constructor() {
-  }
-
-  private async ensureDefaultUser() {
-    if (this.defaultUserInitialized) return;
-    
-    try {
-      const existingUser = await db.select().from(users).where(eq(users.username, "demo")).limit(1);
-
-      if (existingUser.length === 0) {
-        await db.insert(users).values({
-          id: "default-user-id",
-          username: "demo",
-          password: "demo"
-        });
-      }
-      this.defaultUserInitialized = true;
-    } catch (error) {
-      console.error("Failed to ensure default user:", error);
-    }
-  }
-
+  // User operations (required for Replit Auth)
   async getUser(id: string): Promise<User | undefined> {
-    await this.ensureDefaultUser();
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    await this.ensureDefaultUser();
-    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
-    return result[0];
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(insertUser).returning();
-    return result[0];
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
   }
 
   async createConversation(userId: string): Promise<Conversation> {
