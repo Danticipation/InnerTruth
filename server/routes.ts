@@ -140,7 +140,7 @@ Use these established facts to provide deeper, more personalized insights. Refer
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertJournalEntrySchema.parse(req.body);
-      const entry = await storage.createJournalEntry(validatedData);
+      const entry = await storage.createJournalEntry({ ...validatedData, userId });
       
       const allEntries = await storage.getJournalEntriesByUserId(userId);
       const conversations = await storage.getConversationsByUserId(userId);

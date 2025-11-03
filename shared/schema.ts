@@ -106,16 +106,19 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
 
 export const insertJournalEntrySchema = createInsertSchema(journalEntries).omit({
   id: true,
+  userId: true,
   createdAt: true,
 });
 
 export const insertPersonalityInsightSchema = createInsertSchema(personalityInsights).omit({
   id: true,
+  userId: true,
   createdAt: true,
 });
 
 export const insertMemoryFactSchema = createInsertSchema(memoryFacts).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -141,6 +144,6 @@ export type MemoryFactMention = typeof memoryFactMentions.$inferSelect;
 export type MemorySnapshot = typeof memorySnapshots.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
-export type InsertMemoryFact = z.infer<typeof insertMemoryFactSchema>;
+export type InsertMemoryFact = Omit<typeof memoryFacts.$inferInsert, "id" | "createdAt" | "updatedAt">;
 export type InsertMemoryFactMention = z.infer<typeof insertMemoryFactMentionSchema>;
 export type InsertMemorySnapshot = z.infer<typeof insertMemorySnapshotSchema>;
