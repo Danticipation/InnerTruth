@@ -89,6 +89,34 @@ export const memorySnapshots = pgTable("memory_snapshots", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const moodEntries = pgTable("mood_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  mood: text("mood").notNull(),
+  intensity: integer("intensity").notNull(),
+  activities: text("activities").array(),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const personalityReflections = pgTable("personality_reflections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  summary: text("summary").notNull(),
+  coreTraits: jsonb("core_traits").notNull(),
+  behavioralPatterns: text("behavioral_patterns").array().notNull(),
+  emotionalPatterns: text("emotional_patterns").array().notNull(),
+  relationshipDynamics: text("relationship_dynamics").array().notNull(),
+  copingMechanisms: text("coping_mechanisms").array().notNull(),
+  growthAreas: text("growth_areas").array().notNull(),
+  strengths: text("strengths").array().notNull(),
+  blindSpots: text("blind_spots").array().notNull(),
+  valuesAndBeliefs: text("values_and_beliefs").array().notNull(),
+  therapeuticInsights: text("therapeutic_insights").array().notNull(),
+  statistics: jsonb("statistics"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const upsertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
@@ -133,6 +161,18 @@ export const insertMemorySnapshotSchema = createInsertSchema(memorySnapshots).om
   createdAt: true,
 });
 
+export const insertMoodEntrySchema = createInsertSchema(moodEntries).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export const insertPersonalityReflectionSchema = createInsertSchema(personalityReflections).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
@@ -142,8 +182,12 @@ export type PersonalityInsight = typeof personalityInsights.$inferSelect;
 export type MemoryFact = typeof memoryFacts.$inferSelect;
 export type MemoryFactMention = typeof memoryFactMentions.$inferSelect;
 export type MemorySnapshot = typeof memorySnapshots.$inferSelect;
+export type MoodEntry = typeof moodEntries.$inferSelect;
+export type PersonalityReflection = typeof personalityReflections.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
 export type InsertMemoryFact = Omit<typeof memoryFacts.$inferInsert, "id" | "createdAt" | "updatedAt">;
 export type InsertMemoryFactMention = z.infer<typeof insertMemoryFactMentionSchema>;
 export type InsertMemorySnapshot = z.infer<typeof insertMemorySnapshotSchema>;
+export type InsertMoodEntry = z.infer<typeof insertMoodEntrySchema>;
+export type InsertPersonalityReflection = z.infer<typeof insertPersonalityReflectionSchema>;

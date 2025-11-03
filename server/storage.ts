@@ -1,7 +1,7 @@
-import { type User, type UpsertUser, type Message, type InsertMessage, type JournalEntry, type InsertJournalEntry, type Conversation, type PersonalityInsight, type MemoryFact, type InsertMemoryFact, type MemoryFactMention, type InsertMemoryFactMention, type MemorySnapshot, type InsertMemorySnapshot } from "@shared/schema";
+import { type User, type UpsertUser, type Message, type InsertMessage, type JournalEntry, type InsertJournalEntry, type Conversation, type PersonalityInsight, type MemoryFact, type InsertMemoryFact, type MemoryFactMention, type InsertMemoryFactMention, type MemorySnapshot, type InsertMemorySnapshot, type MoodEntry, type InsertMoodEntry, type PersonalityReflection, type InsertPersonalityReflection } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { users, conversations, messages, journalEntries, personalityInsights, memoryFacts, memoryFactMentions, memorySnapshots } from "@shared/schema";
+import { users, conversations, messages, journalEntries, personalityInsights, memoryFacts, memoryFactMentions, memorySnapshots, moodEntries, personalityReflections } from "@shared/schema";
 import { eq, desc, and, sql as drizzleSql } from "drizzle-orm";
 
 export interface IStorage {
@@ -31,6 +31,12 @@ export interface IStorage {
   
   createMemorySnapshot(snapshot: InsertMemorySnapshot): Promise<MemorySnapshot>;
   getLatestMemorySnapshotByUserId(userId: string, snapshotType: string): Promise<MemorySnapshot | undefined>;
+  
+  createMoodEntry(entry: InsertMoodEntry & { userId: string }): Promise<MoodEntry>;
+  getMoodEntriesByUserId(userId: string): Promise<MoodEntry[]>;
+  
+  createPersonalityReflection(reflection: InsertPersonalityReflection & { userId: string }): Promise<PersonalityReflection>;
+  getLatestPersonalityReflection(userId: string): Promise<PersonalityReflection | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -294,6 +300,30 @@ export class PostgresStorage implements IStorage {
         eq(memorySnapshots.snapshotType, snapshotType)
       ))
       .orderBy(desc(memorySnapshots.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async createMoodEntry(entry: InsertMoodEntry & { userId: string }): Promise<MoodEntry> {
+    const result = await db.insert(moodEntries).values(entry).returning();
+    return result[0];
+  }
+
+  async getMoodEntriesByUserId(userId: string): Promise<MoodEntry[]> {
+    return await db.select().from(moodEntries)
+      .where(eq(moodEntries.userId, userId))
+      .orderBy(desc(moodEntries.createdAt));
+  }
+
+  async createPersonalityReflection(reflection: InsertPersonalityReflection & { userId: string }): Promise<PersonalityReflection> {
+    const result = await db.insert(personalityReflections).values(reflection).returning();
+    return result[0];
+  }
+
+  async getLatestPersonalityReflection(userId: string): Promise<PersonalityReflection | undefined> {
+    const result = await db.select().from(personalityReflections)
+      .where(eq(personalityReflections.userId, userId))
+      .orderBy(desc(personalityReflections.createdAt))
       .limit(1);
     return result[0];
   }
