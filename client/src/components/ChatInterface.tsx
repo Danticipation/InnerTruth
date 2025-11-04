@@ -98,11 +98,30 @@ export function ChatInterface() {
     }
   }, [speechError, toast]);
 
+  // Initialize latestAiMessageRef when messages load or auto-play is toggled on
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    // Find the most recent assistant message
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") {
+        // Update the ref when:
+        // 1. It's not set yet (initial load)
+        // 2. Auto-play is enabled (sync to latest when toggled on)
+        // This prevents replaying old messages when loading or re-enabling auto-play
+        if (!latestAiMessageRef.current || autoPlayEnabled) {
+          latestAiMessageRef.current = messages[i].id;
+        }
+        break;
+      }
+    }
+  }, [messages, autoPlayEnabled]);
+
   // Auto-play AI messages when enabled
   useEffect(() => {
     if (!autoPlayEnabled || messages.length === 0) return;
 
-    // Find the latest AI message
+    // Find the latest message
     const latestMessage = messages[messages.length - 1];
     
     // Only auto-play if it's an AI message and we haven't played it yet
