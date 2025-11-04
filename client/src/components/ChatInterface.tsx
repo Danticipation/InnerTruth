@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Send, Sparkles, Plus, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { Send, Sparkles, Plus, Mic, MicOff, Volume2, VolumeX, VolumeOff } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -28,7 +28,12 @@ export function ChatInterface() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [pendingMessageId, setPendingMessageId] = useState<string | null>(null);
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem("autoPlayEnabled");
+    return saved === "true";
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const latestAiMessageRef = useRef<string | null>(null);
   const { toast } = useToast();
 
   const {
@@ -70,6 +75,11 @@ export function ChatInterface() {
     },
   });
 
+  // Save auto-play preference to localStorage
+  useEffect(() => {
+    localStorage.setItem("autoPlayEnabled", String(autoPlayEnabled));
+  }, [autoPlayEnabled]);
+
   // Show toast when speech recognition errors occur
   useEffect(() => {
     if (speechError) {
@@ -87,6 +97,26 @@ export function ChatInterface() {
       });
     }
   }, [speechError, toast]);
+
+  // Auto-play AI messages when enabled
+  useEffect(() => {
+    if (!autoPlayEnabled || messages.length === 0) return;
+
+    // Find the latest AI message
+    const latestMessage = messages[messages.length - 1];
+    
+    // Only auto-play if it's an AI message and we haven't played it yet
+    if (
+      latestMessage.role === "assistant" && 
+      latestMessage.id !== latestAiMessageRef.current &&
+      !isSpeaking &&
+      !pendingMessageId
+    ) {
+      latestAiMessageRef.current = latestMessage.id;
+      setPendingMessageId(latestMessage.id);
+      speak(latestMessage.content);
+    }
+  }, [messages, autoPlayEnabled, isSpeaking, pendingMessageId, speak]);
 
   const { data: conversations, isLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"]
@@ -278,15 +308,33 @@ export function ChatInterface() {
             <span className="hidden sm:inline">AI Conversation</span>
             <span className="sm:hidden">Chat</span>
           </CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleNewConversation}
-            data-testid="button-new-conversation"
-          >
-            <Plus className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">New Chat</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={autoPlayEnabled ? "default" : "outline"}
+              size="sm"
+              onClick={() => setAutoPlayEnabled(!autoPlayEnabled)}
+              data-testid="button-toggle-autoplay"
+              className="shrink-0"
+            >
+              {autoPlayEnabled ? (
+                <Volume2 className="h-4 w-4 sm:mr-1" />
+              ) : (
+                <VolumeOff className="h-4 w-4 sm:mr-1" />
+              )}
+              <span className="hidden sm:inline">
+                {autoPlayEnabled ? "Auto-play On" : "Auto-play Off"}
+              </span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleNewConversation}
+              data-testid="button-new-conversation"
+            >
+              <Plus className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">New Chat</span>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
           <ScrollArea className="h-[300px] sm:h-[400px] pr-2 sm:pr-4" data-testid="scroll-messages">
