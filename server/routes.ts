@@ -470,6 +470,53 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
     }
   });
 
+  app.post("/api/text-to-speech", isAuthenticated, async (req: any, res) => {
+    try {
+      const { text, voiceId } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ error: "Text is required" });
+      }
+
+      if (!process.env.ELEVENLABS_API_KEY) {
+        return res.status(500).json({ error: "Eleven Labs API key not configured" });
+      }
+
+      const voice = voiceId || "21m00Tcm4TlvDq8ikWAM"; // Default to Rachel voice
+
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
+        method: "POST",
+        headers: {
+          "Accept": "audio/mpeg",
+          "Content-Type": "application/json",
+          "xi-api-key": process.env.ELEVENLABS_API_KEY,
+        },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_monolingual_v1",
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.5,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("Eleven Labs API error:", error);
+        return res.status(response.status).json({ error: "Failed to generate speech" });
+      }
+
+      const audioBuffer = await response.arrayBuffer();
+      
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.send(Buffer.from(audioBuffer));
+    } catch (error: any) {
+      console.error("Text-to-speech error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
