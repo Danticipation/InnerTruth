@@ -11,6 +11,9 @@ Mirror is an AI-powered personality analysis application that helps users discov
    - Confronts patterns and contradictions compassionately
    - Asks probing questions that challenge assumptions
    - Stores full conversation history for analysis
+   - **Speech-to-Text**: Voice input using Web Speech API (Chrome/Edge)
+   - **Text-to-Speech**: Natural AI voice responses via Eleven Labs
+   - Visual feedback for recording and speaking states
 
 2. **Digital Journal** (`/journal`)
    - Private journaling with writing prompts
@@ -79,6 +82,26 @@ Mirror is an AI-powered personality analysis application that helps users discov
 - Memory Fact Mentions: Evidence linking facts to specific messages/journals
 - Memory Snapshots: Periodic summaries of memory state (schema ready, not yet used)
 ```
+
+## Recent Changes (November 2025)
+
+### Speech Integration (November 2025)
+- **Speech-to-Text (STT)**: Browser-based voice input using Web Speech API
+  - Real-time transcription as you speak
+  - Visual "Recording" badge indicator
+  - Works in Chrome, Edge, and other Chromium-based browsers
+  - Seamlessly integrates with text input (can type or speak)
+- **Text-to-Speech (TTS)**: High-quality AI voice using Eleven Labs
+  - Click speaker button on any AI message to hear it aloud
+  - Natural, human-like voice synthesis (Rachel voice by default)
+  - Visual indicator shows which message is currently playing
+  - Server-side API integration for security
+  - Requires Eleven Labs API key (configured in secrets)
+- **Visual Feedback**:
+  - Microphone button turns red when recording
+  - "Recording" badge pulses while listening
+  - Volume icons toggle between play/stop states
+  - Seamless UX with loading states
 
 ## Recent Changes (November 2025)
 
