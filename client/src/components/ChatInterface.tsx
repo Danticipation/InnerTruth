@@ -3,11 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Send, Sparkles, Plus } from "lucide-react";
+import { Send, Sparkles, Plus, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import type { Message, Conversation } from "@shared/schema";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { useToast } from "@/hooks/use-toast";
 
 const suggestedPrompts = [
   "What's been on your mind lately?",
@@ -23,7 +26,31 @@ export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  const {
+    isListening,
+    transcript,
+    interimTranscript,
+    isSupported: isSpeechRecognitionSupported,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useSpeechRecognition();
+
+  const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech({
+    onEnd: () => setSpeakingMessageId(null),
+    onError: (error) => {
+      toast({
+        title: "Speech Error",
+        description: "Failed to generate speech. Please try again.",
+        variant: "destructive",
+      });
+      setSpeakingMessageId(null);
+    },
+  });
 
   const { data: conversations, isLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"]
@@ -118,6 +145,13 @@ export function ChatInterface() {
     }
   }, [conversations, isInitialized]);
 
+  useEffect(() => {
+    if (isListening) {
+      const fullTranscript = (transcript + ' ' + interimTranscript).trim();
+      setInput(fullTranscript);
+    }
+  }, [transcript, interimTranscript, isListening]);
+
   const handleSend = () => {
     if (!input.trim() || !conversationId) return;
     
@@ -131,7 +165,38 @@ export function ChatInterface() {
     
     setMessages(prev => [...prev, userMessage]);
     setInput("");
+    if (isListening) {
+      stopListening();
+      resetTranscript();
+    }
     sendMessageMutation.mutate(input);
+  };
+
+  const toggleVoiceInput = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      if (!isSpeechRecognitionSupported) {
+        toast({
+          title: "Not Supported",
+          description: "Speech recognition is not supported in your browser. Try Chrome or Edge.",
+          variant: "destructive",
+        });
+        return;
+      }
+      resetTranscript();
+      startListening();
+    }
+  };
+
+  const handleSpeakMessage = (messageId: string, content: string) => {
+    if (speakingMessageId === messageId) {
+      stopSpeaking();
+      setSpeakingMessageId(null);
+    } else {
+      setSpeakingMessageId(messageId);
+      speak(content);
+    }
   };
 
   const handlePromptClick = (prompt: string) => {
@@ -188,7 +253,7 @@ export function ChatInterface() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex items-start gap-2 ${message.role === "user" ? "justify-end" : "justify-start"}`}
                   data-testid={`message-${message.role}-${message.id}`}
                 >
                   <div
@@ -205,6 +270,21 @@ export function ChatInterface() {
                       {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
+                  {message.role === "assistant" && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="shrink-0 h-8 w-8"
+                      onClick={() => handleSpeakMessage(message.id, message.content)}
+                      data-testid={`button-speak-${message.id}`}
+                    >
+                      {speakingMessageId === message.id ? (
+                        <VolumeX className="h-4 w-4" />
+                      ) : (
+                        <Volume2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
                 </div>
               ))}
               {sendMessageMutation.isPending && (
@@ -220,29 +300,49 @@ export function ChatInterface() {
           
           <div className="space-y-3">
             <div className="flex gap-2">
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Share your thoughts..."
-                className="resize-none text-sm sm:text-base"
-                rows={3}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                data-testid="input-chat-message"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || sendMessageMutation.isPending}
-                size="icon"
-                className="h-auto shrink-0"
-                data-testid="button-send-message"
-              >
-                <Send className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
+              <div className="flex-1 relative">
+                <Textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={isListening ? "Listening..." : "Share your thoughts..."}
+                  className="resize-none text-sm sm:text-base"
+                  rows={3}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  data-testid="input-chat-message"
+                />
+                {isListening && (
+                  <Badge variant="destructive" className="absolute top-2 right-2 animate-pulse">
+                    Recording
+                  </Badge>
+                )}
+              </div>
+              <div className="flex flex-col gap-2 shrink-0">
+                <Button
+                  onClick={toggleVoiceInput}
+                  variant={isListening ? "destructive" : "outline"}
+                  size="icon"
+                  data-testid="button-voice-input"
+                >
+                  {isListening ? (
+                    <MicOff className="h-4 w-4 sm:h-5 sm:w-5" />
+                  ) : (
+                    <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
+                  )}
+                </Button>
+                <Button
+                  onClick={handleSend}
+                  disabled={!input.trim() || sendMessageMutation.isPending}
+                  size="icon"
+                  data-testid="button-send-message"
+                >
+                  <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
