@@ -27,6 +27,7 @@ export function ChatInterface() {
   const [input, setInput] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [pendingMessageId, setPendingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -35,13 +36,29 @@ export function ChatInterface() {
     transcript,
     interimTranscript,
     isSupported: isSpeechRecognitionSupported,
+    error: speechError,
     startListening,
     stopListening,
     resetTranscript,
   } = useSpeechRecognition();
 
   const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech({
-    onEnd: () => setSpeakingMessageId(null),
+    onStart: () => {
+      // When playback actually starts, update the speaking message ID
+      if (pendingMessageId) {
+        setSpeakingMessageId(pendingMessageId);
+        setPendingMessageId(null);
+      }
+      
+      // Stop listening when playback starts to prevent feedback
+      if (isListening) {
+        stopListening();
+      }
+    },
+    onEnd: () => {
+      setSpeakingMessageId(null);
+      setPendingMessageId(null);
+    },
     onError: (error) => {
       toast({
         title: "Speech Error",
@@ -49,8 +66,27 @@ export function ChatInterface() {
         variant: "destructive",
       });
       setSpeakingMessageId(null);
+      setPendingMessageId(null);
     },
   });
+
+  // Show toast when speech recognition errors occur
+  useEffect(() => {
+    if (speechError) {
+      const errorMessages: Record<string, string> = {
+        'not-allowed': 'Microphone permission denied. Please allow microphone access.',
+        'no-speech': 'No speech detected. Please try again.',
+        'audio-capture': 'No microphone found. Please check your device.',
+        'network': 'Network error. Please check your connection.',
+      };
+      
+      toast({
+        title: "Voice Input Error",
+        description: errorMessages[speechError] || 'Speech recognition failed. Please try again.',
+        variant: "destructive",
+      });
+    }
+  }, [speechError, toast]);
 
   const { data: conversations, isLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"]
@@ -189,14 +225,19 @@ export function ChatInterface() {
     }
   };
 
-  const handleSpeakMessage = (messageId: string, content: string) => {
-    if (speakingMessageId === messageId) {
+  const handleSpeakMessage = async (messageId: string, content: string) => {
+    // If clicking the same message that's currently speaking, stop it
+    if (speakingMessageId === messageId || pendingMessageId === messageId) {
       stopSpeaking();
       setSpeakingMessageId(null);
-    } else {
-      setSpeakingMessageId(messageId);
-      speak(content);
+      setPendingMessageId(null);
+      return;
     }
+    
+    // Set pending ID and start playback
+    // The actual speaking ID will be set in onStart callback when playback begins
+    setPendingMessageId(messageId);
+    speak(content);
   };
 
   const handlePromptClick = (prompt: string) => {
@@ -276,9 +317,10 @@ export function ChatInterface() {
                       variant="ghost"
                       className="shrink-0 h-8 w-8"
                       onClick={() => handleSpeakMessage(message.id, message.content)}
+                      disabled={isListening}
                       data-testid={`button-speak-${message.id}`}
                     >
-                      {speakingMessageId === message.id ? (
+                      {(speakingMessageId === message.id || pendingMessageId === message.id) ? (
                         <VolumeX className="h-4 w-4" />
                       ) : (
                         <Volume2 className="h-4 w-4" />

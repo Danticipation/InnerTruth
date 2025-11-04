@@ -26,11 +26,17 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
   }, []);
 
   const speak = useCallback(async (text: string) => {
-    if (!text || isSpeaking || isLoading) return;
+    if (!text) return;
+
+    // Stop any existing playback before starting new one
+    if (isSpeaking || isLoading) {
+      cleanup();
+      setIsSpeaking(false);
+      setIsLoading(false);
+    }
 
     try {
       setIsLoading(true);
-      cleanup();
 
       const response = await fetch('/api/text-to-speech', {
         method: 'POST',

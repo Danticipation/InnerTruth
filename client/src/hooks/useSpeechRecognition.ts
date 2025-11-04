@@ -35,6 +35,7 @@ export function useSpeechRecognition() {
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [isSupported, setIsSupported] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   useEffect(() => {
@@ -70,6 +71,7 @@ export function useSpeechRecognition() {
       recognition.addEventListener('error', (event: Event) => {
         const errorEvent = event as SpeechRecognitionErrorEvent;
         console.error('Speech recognition error:', errorEvent.error);
+        setError(errorEvent.error || 'Speech recognition failed');
         setIsListening(false);
       });
 
@@ -91,6 +93,7 @@ export function useSpeechRecognition() {
     if (recognitionRef.current && !isListening) {
       setTranscript('');
       setInterimTranscript('');
+      setError(null);
       recognitionRef.current.start();
       setIsListening(true);
     }
@@ -113,6 +116,7 @@ export function useSpeechRecognition() {
     transcript,
     interimTranscript,
     isSupported,
+    error,
     startListening,
     stopListening,
     resetTranscript,
