@@ -474,15 +474,20 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
     try {
       const { text, voiceId } = req.body;
 
+      console.log("[TTS] Request received, text length:", text?.length, "voiceId:", voiceId);
+
       if (!text) {
         return res.status(400).json({ error: "Text is required" });
       }
 
       if (!process.env.ELEVENLABS_API_KEY) {
+        console.error("[TTS] Eleven Labs API key not configured");
         return res.status(500).json({ error: "Eleven Labs API key not configured" });
       }
 
       const voice = voiceId || "21m00Tcm4TlvDq8ikWAM"; // Default to Rachel voice
+
+      console.log("[TTS] Calling Eleven Labs API with voice:", voice);
 
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
         method: "POST",
@@ -501,18 +506,21 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
         }),
       });
 
+      console.log("[TTS] Eleven Labs response status:", response.status);
+
       if (!response.ok) {
         const error = await response.text();
-        console.error("Eleven Labs API error:", error);
+        console.error("[TTS] Eleven Labs API error:", response.status, error);
         return res.status(response.status).json({ error: "Failed to generate speech" });
       }
 
       const audioBuffer = await response.arrayBuffer();
+      console.log("[TTS] Audio buffer received, size:", audioBuffer.byteLength, "bytes");
       
       res.setHeader("Content-Type", "audio/mpeg");
       res.send(Buffer.from(audioBuffer));
     } catch (error: any) {
-      console.error("Text-to-speech error:", error);
+      console.error("[TTS] Text-to-speech error:", error);
       res.status(500).json({ error: error.message });
     }
   });

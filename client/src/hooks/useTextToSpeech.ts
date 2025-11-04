@@ -67,10 +67,13 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
       }
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('TTS API error:', response.status, errorText);
         throw new Error('Failed to generate speech');
       }
 
       const audioBlob = await response.blob();
+      console.log('TTS audio blob received:', audioBlob.size, 'bytes, type:', audioBlob.type);
       
       // Check again if this request was cancelled after blob download
       if (currentRequestId !== requestIdRef.current) {
@@ -102,6 +105,7 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
 
       audio.addEventListener('error', (e) => {
         if (currentRequestId === requestIdRef.current) {
+          console.error('Audio playback error:', e, 'Audio element:', audio);
           setIsSpeaking(false);
           setIsLoading(false);
           cleanup();
@@ -112,11 +116,19 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
 
       // Final check before playing
       if (currentRequestId === requestIdRef.current) {
-        await audio.play();
+        try {
+          console.log('Starting audio playback, audioUrl:', audioUrl);
+          await audio.play();
+          console.log('Audio playback started successfully');
+        } catch (playError) {
+          console.error('audio.play() failed:', playError);
+          throw playError;
+        }
       }
     } catch (error) {
       // Only report errors if this request is still current and wasn't aborted
       if (currentRequestId === requestIdRef.current && error instanceof Error && error.name !== 'AbortError') {
+        console.error('TTS error in speak function:', error);
         setIsSpeaking(false);
         setIsLoading(false);
         cleanup();
