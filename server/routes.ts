@@ -13,6 +13,33 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+async function triggerCategoryScoring(userId: string) {
+  try {
+    const selectedCategories = await storage.getUserSelectedCategories(userId);
+    
+    if (selectedCategories.length === 0) {
+      return;
+    }
+
+    for (const userCategory of selectedCategories) {
+      const { categoryId } = userCategory;
+      
+      const { generateAndPersistCategoryScore } = await import("./category-scoring");
+      
+      generateAndPersistCategoryScore(
+        userId,
+        categoryId,
+        "daily",
+        7
+      ).catch(err => {
+        console.error(`Background category scoring failed for ${categoryId}:`, err.message);
+      });
+    }
+  } catch (error: any) {
+    console.error("Error triggering category scoring:", error.message);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth
   await setupAuth(app);
@@ -62,6 +89,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const userMessage = await storage.createMessage(validatedData);
+      
+      triggerCategoryScoring(userId).catch(err =>
+        console.error("Error triggering category scoring after message:", err)
+      );
       
       const conversationHistory = await storage.getMessagesByConversationId(validatedData.conversationId);
       
@@ -146,6 +177,10 @@ Use these established facts to provide deeper, more personalized insights. Refer
         ...validatedData, 
         userId
       });
+      
+      triggerCategoryScoring(userId).catch(err =>
+        console.error("Error triggering category scoring after journal save:", err)
+      );
       
       const allEntries = await storage.getJournalEntriesByUserId(userId);
       const conversations = await storage.getConversationsByUserId(userId);
