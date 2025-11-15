@@ -2,12 +2,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { MessageSquare, BookOpen, ClipboardCheck, Flame, ArrowRight, AlertCircle, Lightbulb, RefreshCw } from "lucide-react";
+import { MessageSquare, BookOpen, ClipboardCheck, Flame, ArrowRight, AlertCircle, Lightbulb, RefreshCw, Target, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import type { PersonalityInsight } from "@shared/schema";
+import type { PersonalityInsight, UserSelectedCategory, CategoryInsight } from "@shared/schema";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { CategoryTrendChart } from "@/components/CategoryTrendChart";
 
 interface Stats {
   conversationCount: number;
@@ -30,6 +31,106 @@ interface PersonalityAnalysis {
   strengths: string[];
 }
 
+function CategorySection({ categoryId, categoryName }: { categoryId: string; categoryName: string }) {
+  const { data: weeklyScoreData } = useQuery<any[]>({
+    queryKey: [`/api/category-scores/${categoryId}?period=weekly&limit=1`],
+  });
+
+  const { data: insights = [] } = useQuery<CategoryInsight[]>({
+    queryKey: [`/api/category-insights/${categoryId}`],
+  });
+
+  const latestWeeklyScore = weeklyScoreData?.[0];
+  const latestInsight = insights[0];
+
+  return (
+    <div className="space-y-4" data-testid={`div-category-section-${categoryId}`}>
+      {/* Trend Chart */}
+      <CategoryTrendChart categoryId={categoryId} categoryName={categoryName} />
+
+      {/* Weekly Score Summary */}
+      {latestWeeklyScore && (
+        <Card data-testid={`card-weekly-summary-${categoryId}`}>
+          <CardHeader>
+            <CardTitle className="text-lg">This Week's Performance</CardTitle>
+            <CardDescription>Weekly score for {categoryName}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-4xl font-bold text-primary mb-1">
+                  {latestWeeklyScore.score}
+                  <span className="text-xl text-muted-foreground">/100</span>
+                </div>
+                <Badge variant={latestWeeklyScore.confidenceLevel === "high" ? "default" : "secondary"}>
+                  {latestWeeklyScore.confidenceLevel} confidence
+                </Badge>
+              </div>
+              {latestWeeklyScore.reasoning && (
+                <div className="flex-1 ml-6">
+                  <p className="text-sm text-muted-foreground">
+                    {latestWeeklyScore.reasoning}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Key Insights */}
+      {latestInsight && (
+        <Card data-testid={`card-key-insights-${categoryId}`}>
+          <CardHeader>
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Lightbulb className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <CardTitle className="text-lg">Key Insights</CardTitle>
+                <CardDescription>{latestInsight.timeframe}</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm mb-3">{latestInsight.summary}</p>
+              
+              {latestInsight.keyPatterns && latestInsight.keyPatterns.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">Patterns Detected:</h4>
+                  <ul className="space-y-1">
+                    {latestInsight.keyPatterns.map((pattern, i) => (
+                      <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <span className="text-primary">•</span>
+                        <span>{pattern}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {latestInsight.recommendedActions && latestInsight.recommendedActions.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <h4 className="text-sm font-semibold">Recommended Actions:</h4>
+                  <ul className="space-y-1">
+                    {latestInsight.recommendedActions.map((action, i) => (
+                      <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <span className="text-primary">→</span>
+                        <span>{action}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export function DashboardOverview() {
   const { toast } = useToast();
   
@@ -45,6 +146,14 @@ export function DashboardOverview() {
     queryKey: ["/api/analyze-personality"],
     enabled: (stats?.conversationCount ?? 0) > 0 || (stats?.journalEntryCount ?? 0) > 0,
     retry: false,
+  });
+
+  const { data: userCategories = [] } = useQuery<UserSelectedCategory[]>({
+    queryKey: ["/api/user-categories"],
+  });
+
+  const { data: categories = [] } = useQuery<any[]>({
+    queryKey: ["/api/categories"],
   });
 
   const analyzePersonalityMutation = useMutation({
@@ -79,8 +188,37 @@ export function DashboardOverview() {
     emotionalStability: 50
   };
 
+  const selectedCategoriesData = userCategories.map((uc) => {
+    const category = categories.find((c: any) => c.id === uc.categoryId);
+    return {
+      ...uc,
+      categoryName: category?.name || "Unknown Category",
+    };
+  });
+
   return (
     <div className="space-y-6">
+      {/* Category Tracking Section */}
+      {selectedCategoriesData.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold" data-testid="text-category-tracking-header">
+              Your Focus Areas
+            </h2>
+          </div>
+          <div className="grid gap-6">
+            {selectedCategoriesData.map((selectedCategory) => (
+              <CategorySection
+                key={selectedCategory.categoryId}
+                categoryId={selectedCategory.categoryId}
+                categoryName={selectedCategory.categoryName}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid md:grid-cols-3 gap-6">
         <Card data-testid="card-profile-completion">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">

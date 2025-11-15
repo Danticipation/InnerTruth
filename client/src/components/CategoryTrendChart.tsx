@@ -68,7 +68,7 @@ export function CategoryTrendChart({ categoryId, categoryName }: CategoryTrendCh
   // Calculate average score
   const averageScore = scoreData.length > 0
     ? Math.round(scoreData.reduce((sum: number, s: any) => sum + s.score, 0) / scoreData.length)
-    : null;
+    : undefined;
 
   return (
     <Card className="p-6" data-testid="card-trend-chart">
@@ -161,7 +161,7 @@ export function CategoryTrendChart({ categoryId, categoryName }: CategoryTrendCh
           )}
 
           {/* Average Score */}
-          {averageScore !== null && (
+          {averageScore !== undefined && (
             <div className="space-y-1" data-testid="div-average-score">
               <p className="text-sm text-muted-foreground">Average</p>
               <p className="text-2xl font-bold">{averageScore}</p>
@@ -207,7 +207,7 @@ export function CategoryTrendChart({ categoryId, categoryName }: CategoryTrendCh
                   return null;
                 }}
               />
-              {averageScore && (
+              {averageScore !== undefined && (
                 <ReferenceLine
                   y={averageScore}
                   stroke="hsl(var(--muted-foreground))"
