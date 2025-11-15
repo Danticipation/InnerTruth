@@ -69,6 +69,7 @@ Mirror is an AI-powered personality analysis application that helps users discov
 - `POST /api/analyze-personality` - Run comprehensive analysis
 - `GET /api/insights` - Get AI-generated insights
 - `GET /api/stats` - Get user statistics
+- `POST /api/text-to-speech` - Generate speech audio from text (Eleven Labs)
 
 ### Data Model
 ```typescript
@@ -99,7 +100,8 @@ Mirror is an AI-powered personality analysis application that helps users discov
   - Requires Eleven Labs API key (configured in secrets)
 - **Auto-Play Toggle**: User control for conversation flow
   - Toggle button in chat header to enable/disable auto-play
-  - When enabled: AI responses automatically play when received
+  - When enabled: Only NEW AI responses (arriving after enabling) play automatically
+  - Smart behavior: Never replays old messages when loading conversations or toggling on/off
   - When disabled: Manual control via speaker buttons
   - Preference persists across sessions (localStorage)
   - Visual indicator shows current auto-play state
@@ -109,8 +111,6 @@ Mirror is an AI-powered personality analysis application that helps users discov
   - Volume icons toggle between play/stop states
   - Auto-play button shows Volume2 (on) or VolumeOff (off)
   - Seamless UX with loading states
-
-## Recent Changes (November 2025)
 
 ### Conversation Persistence (November 2025)
 - **SessionStorage Implementation**: Current conversation ID persists across page navigation
