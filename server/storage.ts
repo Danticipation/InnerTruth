@@ -1,7 +1,7 @@
-import { type User, type UpsertUser, type Message, type InsertMessage, type JournalEntry, type InsertJournalEntry, type Conversation, type PersonalityInsight, type MemoryFact, type InsertMemoryFact, type MemoryFactMention, type InsertMemoryFactMention, type MemorySnapshot, type InsertMemorySnapshot, type MoodEntry, type InsertMoodEntry, type PersonalityReflection, type InsertPersonalityReflection } from "@shared/schema";
+import { type User, type UpsertUser, type Message, type InsertMessage, type JournalEntry, type InsertJournalEntry, type Conversation, type PersonalityInsight, type MemoryFact, type InsertMemoryFact, type MemoryFactMention, type InsertMemoryFactMention, type MemorySnapshot, type InsertMemorySnapshot, type MoodEntry, type InsertMoodEntry, type PersonalityReflection, type InsertPersonalityReflection, type UserSelectedCategory, type InsertUserSelectedCategory, type CategoryScore, type InsertCategoryScore, type CategoryInsight, type InsertCategoryInsight } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { users, conversations, messages, journalEntries, personalityInsights, memoryFacts, memoryFactMentions, memorySnapshots, moodEntries, personalityReflections } from "@shared/schema";
+import { users, conversations, messages, journalEntries, personalityInsights, memoryFacts, memoryFactMentions, memorySnapshots, moodEntries, personalityReflections, userSelectedCategories, categoryScores, categoryInsights } from "@shared/schema";
 import { eq, desc, and, sql as drizzleSql } from "drizzle-orm";
 
 export interface IStorage {
@@ -39,6 +39,18 @@ export interface IStorage {
   
   createPersonalityReflection(reflection: InsertPersonalityReflection & { userId: string }): Promise<PersonalityReflection>;
   getLatestPersonalityReflection(userId: string): Promise<PersonalityReflection | undefined>;
+  
+  // Category tracking operations
+  selectCategory(data: InsertUserSelectedCategory): Promise<UserSelectedCategory>;
+  getUserSelectedCategories(userId: string): Promise<UserSelectedCategory[]>;
+  unselectCategory(userId: string, categoryId: string): Promise<void>;
+  
+  createCategoryScore(score: InsertCategoryScore): Promise<CategoryScore>;
+  getCategoryScores(userId: string, categoryId: string, periodType?: string, limit?: number): Promise<CategoryScore[]>;
+  getLatestCategoryScore(userId: string, categoryId: string, periodType: string): Promise<CategoryScore | undefined>;
+  
+  createCategoryInsight(insight: InsertCategoryInsight): Promise<CategoryInsight>;
+  getCategoryInsights(userId: string, categoryId: string, limit?: number): Promise<CategoryInsight[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -217,6 +229,39 @@ export class MemStorage implements IStorage {
   async getLatestPersonalityReflection(userId: string): Promise<PersonalityReflection | undefined> {
     return undefined;
   }
+
+  // Category tracking operations (not supported in MemStorage)
+  async selectCategory(data: InsertUserSelectedCategory): Promise<UserSelectedCategory> {
+    throw new Error("Category tracking not supported in MemStorage");
+  }
+
+  async getUserSelectedCategories(userId: string): Promise<UserSelectedCategory[]> {
+    return [];
+  }
+
+  async unselectCategory(userId: string, categoryId: string): Promise<void> {
+    throw new Error("Category tracking not supported in MemStorage");
+  }
+
+  async createCategoryScore(score: InsertCategoryScore): Promise<CategoryScore> {
+    throw new Error("Category tracking not supported in MemStorage");
+  }
+
+  async getCategoryScores(userId: string, categoryId: string, periodType?: string, limit?: number): Promise<CategoryScore[]> {
+    return [];
+  }
+
+  async getLatestCategoryScore(userId: string, categoryId: string, periodType: string): Promise<CategoryScore | undefined> {
+    return undefined;
+  }
+
+  async createCategoryInsight(insight: InsertCategoryInsight): Promise<CategoryInsight> {
+    throw new Error("Category tracking not supported in MemStorage");
+  }
+
+  async getCategoryInsights(userId: string, categoryId: string, limit?: number): Promise<CategoryInsight[]> {
+    return [];
+  }
 }
 
 export class PostgresStorage implements IStorage {
@@ -381,6 +426,92 @@ export class PostgresStorage implements IStorage {
       .orderBy(desc(personalityReflections.createdAt))
       .limit(1);
     return result[0];
+  }
+
+  // Category tracking operations
+  async selectCategory(data: InsertUserSelectedCategory): Promise<UserSelectedCategory> {
+    const result = await db.insert(userSelectedCategories).values(data).returning();
+    return result[0];
+  }
+
+  async getUserSelectedCategories(userId: string): Promise<UserSelectedCategory[]> {
+    return await db.select().from(userSelectedCategories)
+      .where(and(
+        eq(userSelectedCategories.userId, userId),
+        eq(userSelectedCategories.status, 'active')
+      ))
+      .orderBy(userSelectedCategories.startedAt);
+  }
+
+  async unselectCategory(userId: string, categoryId: string): Promise<void> {
+    await db
+      .update(userSelectedCategories)
+      .set({ status: 'inactive', pausedAt: new Date() })
+      .where(and(
+        eq(userSelectedCategories.userId, userId),
+        eq(userSelectedCategories.categoryId, categoryId)
+      ));
+  }
+
+  async createCategoryScore(score: InsertCategoryScore): Promise<CategoryScore> {
+    const result = await db.insert(categoryScores).values(score).returning();
+    return result[0];
+  }
+
+  async getCategoryScores(
+    userId: string,
+    categoryId: string,
+    periodType?: string,
+    limit: number = 30
+  ): Promise<CategoryScore[]> {
+    const conditions = [
+      eq(categoryScores.userId, userId),
+      eq(categoryScores.categoryId, categoryId)
+    ];
+
+    if (periodType) {
+      conditions.push(eq(categoryScores.periodType, periodType));
+    }
+
+    return await db.select().from(categoryScores)
+      .where(and(...conditions))
+      .orderBy(desc(categoryScores.periodStart))
+      .limit(limit);
+  }
+
+  async getLatestCategoryScore(
+    userId: string,
+    categoryId: string,
+    periodType: string
+  ): Promise<CategoryScore | undefined> {
+    const result = await db.select().from(categoryScores)
+      .where(and(
+        eq(categoryScores.userId, userId),
+        eq(categoryScores.categoryId, categoryId),
+        eq(categoryScores.periodType, periodType)
+      ))
+      .orderBy(desc(categoryScores.periodStart))
+      .limit(1);
+    return result[0];
+  }
+
+  async createCategoryInsight(insight: InsertCategoryInsight): Promise<CategoryInsight> {
+    const result = await db.insert(categoryInsights).values(insight).returning();
+    return result[0];
+  }
+
+  async getCategoryInsights(
+    userId: string,
+    categoryId: string,
+    limit: number = 10
+  ): Promise<CategoryInsight[]> {
+    return await db.select().from(categoryInsights)
+      .where(and(
+        eq(categoryInsights.userId, userId),
+        eq(categoryInsights.categoryId, categoryId)
+      ))
+      .orderBy(desc(categoryInsights.createdAt))
+      .limit(limit);
   }
 }
 
