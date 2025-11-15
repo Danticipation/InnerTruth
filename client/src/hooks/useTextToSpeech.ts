@@ -23,6 +23,10 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
     }
     
     if (audioRef.current) {
+      // Remove all event listeners before cleanup to prevent error events
+      audioRef.current.onplay = null;
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
       audioRef.current.pause();
       audioRef.current.src = '';
       audioRef.current = null;
