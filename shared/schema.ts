@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, jsonb, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -128,7 +128,9 @@ export const userSelectedCategories = pgTable("user_selected_categories", {
   startedAt: timestamp("started_at").defaultNow().notNull(),
   pausedAt: timestamp("paused_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  uniqueUserCategory: unique('unique_user_category').on(table.userId, table.categoryId)
+}));
 
 export const categoryScores = pgTable("category_scores", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -139,10 +141,17 @@ export const categoryScores = pgTable("category_scores", {
   periodEnd: timestamp("period_end").notNull(),
   score: integer("score").notNull(),
   delta: integer("delta"),
+  reasoning: text("reasoning"),
+  keyPatterns: text("key_patterns").array(),
+  progressIndicators: text("progress_indicators").array(),
+  areasForGrowth: text("areas_for_growth").array(),
+  confidenceLevel: text("confidence_level"),
+  evidenceSnippets: jsonb("evidence_snippets"),
   contributors: jsonb("contributors"),
-  rationale: text("rationale"),
   generatedAt: timestamp("generated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  uniquePeriodScore: unique('unique_period_score').on(table.userId, table.categoryId, table.periodType, table.periodStart)
+}));
 
 export const categoryInsights = pgTable("category_insights", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
