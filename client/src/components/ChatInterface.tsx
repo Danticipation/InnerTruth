@@ -30,7 +30,8 @@ export function ChatInterface() {
   const [pendingMessageId, setPendingMessageId] = useState<string | null>(null);
   const [autoPlayEnabled, setAutoPlayEnabled] = useState<boolean>(() => {
     const saved = localStorage.getItem("autoPlayEnabled");
-    return saved === "true";
+    // Default to true if never set before
+    return saved === null ? true : saved === "true";
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const latestAiMessageRef = useRef<string | null>(null);
