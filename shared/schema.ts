@@ -117,6 +117,45 @@ export const personalityReflections = pgTable("personality_reflections", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Category Tracking Tables (MVP Feature)
+export const userSelectedCategories = pgTable("user_selected_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  categoryId: varchar("category_id").notNull(),
+  status: text("status").notNull().default('active'),
+  baselineScore: integer("baseline_score"),
+  goalScore: integer("goal_score"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  pausedAt: timestamp("paused_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const categoryScores = pgTable("category_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  categoryId: varchar("category_id").notNull(),
+  periodType: text("period_type").notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  score: integer("score").notNull(),
+  delta: integer("delta"),
+  contributors: jsonb("contributors"),
+  rationale: text("rationale"),
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+});
+
+export const categoryInsights = pgTable("category_insights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  categoryId: varchar("category_id").notNull(),
+  timeframe: text("timeframe").notNull(),
+  summary: text("summary").notNull(),
+  keyPatterns: text("key_patterns").array().notNull(),
+  recommendedActions: text("recommended_actions").array().notNull(),
+  severity: text("severity"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const upsertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
@@ -173,6 +212,22 @@ export const insertPersonalityReflectionSchema = createInsertSchema(personalityR
   createdAt: true,
 });
 
+export const insertUserSelectedCategorySchema = createInsertSchema(userSelectedCategories).omit({
+  id: true,
+  createdAt: true,
+  startedAt: true,
+});
+
+export const insertCategoryScoreSchema = createInsertSchema(categoryScores).omit({
+  id: true,
+  generatedAt: true,
+});
+
+export const insertCategoryInsightSchema = createInsertSchema(categoryInsights).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
@@ -184,6 +239,9 @@ export type MemoryFactMention = typeof memoryFactMentions.$inferSelect;
 export type MemorySnapshot = typeof memorySnapshots.$inferSelect;
 export type MoodEntry = typeof moodEntries.$inferSelect;
 export type PersonalityReflection = typeof personalityReflections.$inferSelect;
+export type UserSelectedCategory = typeof userSelectedCategories.$inferSelect;
+export type CategoryScore = typeof categoryScores.$inferSelect;
+export type CategoryInsight = typeof categoryInsights.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
 export type InsertMemoryFact = Omit<typeof memoryFacts.$inferInsert, "id" | "createdAt" | "updatedAt">;
@@ -191,3 +249,6 @@ export type InsertMemoryFactMention = z.infer<typeof insertMemoryFactMentionSche
 export type InsertMemorySnapshot = z.infer<typeof insertMemorySnapshotSchema>;
 export type InsertMoodEntry = z.infer<typeof insertMoodEntrySchema>;
 export type InsertPersonalityReflection = z.infer<typeof insertPersonalityReflectionSchema>;
+export type InsertUserSelectedCategory = z.infer<typeof insertUserSelectedCategorySchema>;
+export type InsertCategoryScore = z.infer<typeof insertCategoryScoreSchema>;
+export type InsertCategoryInsight = z.infer<typeof insertCategoryInsightSchema>;
