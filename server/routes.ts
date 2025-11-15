@@ -68,6 +68,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const conversation = await storage.createConversation(userId);
+      
+      // Create initial welcome message in database for persistence
+      await storage.createMessage({
+        conversationId: conversation.id,
+        role: "assistant",
+        content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?"
+      });
+      
       res.json(conversation);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

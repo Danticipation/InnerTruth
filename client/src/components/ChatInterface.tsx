@@ -175,18 +175,7 @@ export function ChatInterface() {
         
         const messagesRes = await fetch(`/api/messages/${storedId}`);
         const loadedMessages: Message[] = await messagesRes.json();
-        
-        if (loadedMessages.length > 0) {
-          setMessages(loadedMessages);
-        } else {
-          setMessages([{
-            id: "welcome",
-            conversationId: storedId,
-            role: "assistant",
-            content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
-            createdAt: new Date()
-          }]);
-        }
+        setMessages(loadedMessages);
       } else if (conversations.length > 0) {
         // Priority 2: Load most recent conversation if no valid stored ID
         const mostRecent = conversations[0];
@@ -195,18 +184,7 @@ export function ChatInterface() {
         
         const messagesRes = await fetch(`/api/messages/${mostRecent.id}`);
         const loadedMessages: Message[] = await messagesRes.json();
-        
-        if (loadedMessages.length > 0) {
-          setMessages(loadedMessages);
-        } else {
-          setMessages([{
-            id: "welcome",
-            conversationId: mostRecent.id,
-            role: "assistant",
-            content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
-            createdAt: new Date()
-          }]);
-        }
+        setMessages(loadedMessages);
       } else {
         // Priority 3: Create new conversation only if absolutely none exist
         const response = await fetch("/api/conversations", { method: "POST" });
@@ -214,13 +192,10 @@ export function ChatInterface() {
         setConversationId(data.id);
         sessionStorage.setItem("currentConversationId", data.id);
         
-        setMessages([{
-          id: "welcome",
-          conversationId: data.id,
-          role: "assistant",
-          content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
-          createdAt: new Date()
-        }]);
+        // Fetch messages (including the persisted welcome message)
+        const messagesRes = await fetch(`/api/messages/${data.id}`);
+        const loadedMessages: Message[] = await messagesRes.json();
+        setMessages(loadedMessages);
       }
       
       setIsInitialized(true);
@@ -301,13 +276,11 @@ export function ChatInterface() {
     setConversationId(data.id);
     sessionStorage.setItem("currentConversationId", data.id);
     
-    setMessages([{
-      id: "welcome",
-      conversationId: data.id,
-      role: "assistant",
-      content: "Hello! I'm here to help you explore your thoughts and feelings. What would you like to talk about today?",
-      createdAt: new Date()
-    }]);
+    // Fetch messages (including the persisted welcome message)
+    const messagesRes = await fetch(`/api/messages/${data.id}`);
+    const loadedMessages: Message[] = await messagesRes.json();
+    setMessages(loadedMessages);
+    
     setIsInitialized(true);  // Mark as initialized again
   };
 

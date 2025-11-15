@@ -54,11 +54,16 @@ function updateUserSession(
 async function upsertUser(
   claims: any,
 ) {
+  // Map standard OIDC claims (given_name, family_name) to our schema
+  // Fall back to parsing 'name' claim if given_name/family_name not available
+  const firstName = claims["given_name"] || claims["name"]?.split(' ')[0] || '';
+  const lastName = claims["family_name"] || claims["name"]?.split(' ').slice(1).join(' ') || '';
+  
   await storage.upsertUser({
     id: claims["sub"],
     email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
+    firstName,
+    lastName,
     profileImageUrl: claims["profile_image_url"],
   });
 }

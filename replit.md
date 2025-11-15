@@ -25,6 +25,7 @@ Mirror utilizes a modern web stack with a focus on AI-driven personality analysi
 - **Database**: PostgreSQL via Neon Serverless for persistent storage, managed with Drizzle ORM for schema migrations and type-safe queries.
 - **State Management**: TanStack Query (React Query) for efficient data fetching, caching, and synchronization.
 - **Authentication**: Multi-user authentication using Replit Auth (OpenID Connect via Google, GitHub, X, Apple, email/password) with PostgreSQL-backed session storage and 7-day TTL.
+  - **OIDC Claim Mapping**: Standard OIDC claims (`given_name`, `family_name`) are properly mapped to user profile fields, with fallback to parsing `name` claim if needed (November 2025 fix).
 - **Data Isolation**: Strict per-user data isolation for all sensitive information (conversations, journal entries, insights, memory facts) enforced at the API level with `isAuthenticated` middleware and ownership verification.
 - **AI Memory System**: Asynchronous GPT-4o calls extract, store, and deduplicate facts from conversations and journal entries into a PostgreSQL-based memory system. These facts (up to 20 per interaction) are injected into AI prompts to provide personalized responses.
 - **Speech Integration**:
