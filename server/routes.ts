@@ -6,6 +6,7 @@ import OpenAI from "openai";
 import { memoryService } from "./memory-service";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { comprehensiveAnalytics } from "./comprehensive-analytics";
+import { z } from "zod";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -521,6 +522,203 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
       res.send(Buffer.from(audioBuffer));
     } catch (error: any) {
       console.error("[TTS] Text-to-speech error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== CATEGORY TRACKING ENDPOINTS =====
+  
+  // Validation schemas for category endpoints
+  const selectCategorySchema = z.object({
+    categoryId: z.string().min(1),
+    goalScore: z.number().int().min(0).max(100).optional().nullable(),
+    baselineScore: z.number().int().min(0).max(100).optional().nullable()
+  });
+
+  const generateScoreSchema = z.object({
+    periodType: z.enum(['daily', 'weekly']).optional().default('daily'),
+    lookbackDays: z.number().int().min(1).max(30).optional().default(7)
+  });
+
+  const getCategoryScoresSchema = z.object({
+    period: z.enum(['daily', 'weekly']).optional(),
+    limit: z.coerce.number().int().min(1).max(365).optional().default(30)
+  });
+
+  // GET /api/categories - List all categories with tier metadata
+  app.get("/api/categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const { getAllCategories } = await import("./categories");
+      const categories = getAllCategories();
+      res.json(categories);
+    } catch (error: any) {
+      console.error("Error fetching categories:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/user-categories - Get user's selected categories with latest scores
+  app.get("/api/user-categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const selectedCategories = await storage.getUserSelectedCategories(userId);
+      
+      // Enrich with latest scores
+      const enrichedCategories = await Promise.all(
+        selectedCategories.map(async (cat) => {
+          const latestDaily = await storage.getLatestCategoryScore(userId, cat.categoryId, 'daily');
+          const latestWeekly = await storage.getLatestCategoryScore(userId, cat.categoryId, 'weekly');
+          return {
+            ...cat,
+            latestDailyScore: latestDaily,
+            latestWeeklyScore: latestWeekly
+          };
+        })
+      );
+
+      res.json(enrichedCategories);
+    } catch (error: any) {
+      console.error("Error fetching user categories:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/user-categories - Select a category to track
+  app.post("/api/user-categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Validate request body
+      const validation = selectCategorySchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors });
+      }
+
+      const { categoryId, goalScore, baselineScore } = validation.data;
+
+      // Check if category exists
+      const { getCategoryById } = await import("./categories");
+      const category = getCategoryById(categoryId);
+      if (!category) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+
+      // TODO: Add plan limit enforcement (Free=1, Premium tiers unlock more)
+      // For MVP, allow unlimited selections
+
+      const selected = await storage.selectCategory({
+        userId,
+        categoryId,
+        status: 'active',
+        baselineScore: baselineScore ?? null,
+        goalScore: goalScore ?? null
+      });
+
+      res.status(201).json(selected);
+    } catch (error: any) {
+      console.error("Error selecting category:", error);
+      if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        return res.status(409).json({ error: "Category already selected" });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // DELETE /api/user-categories/:categoryId - Unselect a category
+  app.delete("/api/user-categories/:categoryId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { categoryId } = req.params;
+
+      await storage.unselectCategory(userId, categoryId);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error unselecting category:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/category-scores/:categoryId/generate - Generate and persist new score
+  app.post("/api/category-scores/:categoryId/generate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { categoryId } = req.params;
+      
+      // Validate request body
+      const validation = generateScoreSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors });
+      }
+
+      const { periodType, lookbackDays } = validation.data;
+
+      // Verify user has this category selected
+      const selectedCategories = await storage.getUserSelectedCategories(userId);
+      const isSelected = selectedCategories.some(cat => cat.categoryId === categoryId);
+      
+      if (!isSelected) {
+        return res.status(403).json({ error: "Category not selected. Select it first." });
+      }
+
+      const { generateAndPersistCategoryScore } = await import("./category-scoring");
+      const result = await generateAndPersistCategoryScore(
+        userId,
+        categoryId,
+        periodType,
+        lookbackDays
+      );
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error generating category score:", error);
+      
+      // Handle insufficient data error
+      if (error.message?.includes('Insufficient data')) {
+        return res.status(400).json({ error: error.message });
+      }
+      
+      // Handle duplicate score error (from unique constraint)
+      if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        return res.status(409).json({ error: "Score already exists for this period. Retrieve existing score instead." });
+      }
+      
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/category-scores/:categoryId - Get score history for a category
+  app.get("/api/category-scores/:categoryId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { categoryId } = req.params;
+      
+      // Validate query parameters
+      const validation = getCategoryScoresSchema.safeParse(req.query);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors });
+      }
+
+      const { period, limit } = validation.data;
+
+      const scores = await storage.getCategoryScores(userId, categoryId, period, limit);
+      res.json(scores);
+    } catch (error: any) {
+      console.error("Error fetching category scores:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/category-insights/:categoryId - Get insights for a category
+  app.get("/api/category-insights/:categoryId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { categoryId } = req.params;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      const insights = await storage.getCategoryInsights(userId, categoryId, limit);
+      res.json(insights);
+    } catch (error: any) {
+      console.error("Error fetching category insights:", error);
       res.status(500).json({ error: error.message });
     }
   });

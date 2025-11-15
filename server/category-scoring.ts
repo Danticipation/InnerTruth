@@ -14,7 +14,68 @@ export interface CategoryScoreResult {
   progressIndicators: string[];
   areasForGrowth: string[];
   confidenceLevel: 'low' | 'medium' | 'high';
+  evidenceSnippets: { source: string; excerpt: string; date: string }[];
 }
+
+// JSON Schema for structured output
+const SCORE_RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    score: {
+      type: "number",
+      minimum: 0,
+      maximum: 100,
+      description: "Overall score for this category (0-100)"
+    },
+    reasoning: {
+      type: "string",
+      description: "2-3 sentences explaining the score"
+    },
+    keyPatterns: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 0,
+      maxItems: 5,
+      description: "Observable behavioral or emotional patterns"
+    },
+    progressIndicators: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 0,
+      maxItems: 3,
+      description: "Positive signs of growth or improvement"
+    },
+    areasForGrowth: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 0,
+      maxItems: 4,
+      description: "Areas needing attention or development"
+    },
+    confidenceLevel: {
+      type: "string",
+      enum: ["low", "medium", "high"],
+      description: "Confidence in this assessment based on data quality and quantity"
+    },
+    evidenceSnippets: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          source: { type: "string", description: "journal or chat" },
+          excerpt: { type: "string", description: "Relevant quote or paraphrase" },
+          date: { type: "string", description: "ISO date string" }
+        },
+        required: ["source", "excerpt", "date"]
+      },
+      minItems: 0,
+      maxItems: 5,
+      description: "Supporting evidence from user's journal and chat"
+    }
+  },
+  required: ["score", "reasoning", "keyPatterns", "progressIndicators", "areasForGrowth", "confidenceLevel", "evidenceSnippets"],
+  additionalProperties: false
+};
 
 /**
  * Generate a category score for a user based on recent activity
@@ -40,9 +101,11 @@ export async function generateCategoryScore(
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - lookbackDays);
 
+  // IMPORTANT: Filter by date FIRST, then slice to limit
+  // This ensures we're only analyzing recent data within the lookback window
   const recentJournals = journalEntries
     .filter(j => new Date(j.createdAt) >= cutoffDate)
-    .slice(0, 10); // Max 10 journal entries
+    .slice(0, 10); // Max 10 journal entries (already filtered by date)
 
   // Get recent messages from all conversations
   let recentMessages: any[] = [];
@@ -64,8 +127,9 @@ export async function generateCategoryScore(
     .map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`)
     .join('\n');
 
-  // Check if we have enough data
-  const hasMinimumData = recentJournals.length >= 2 || recentMessages.length >= 5;
+  // Check if we have enough data (count only user messages, not assistant responses)
+  const userMessageCount = recentMessages.filter(m => m.role === 'user').length;
+  const hasMinimumData = recentJournals.length >= 2 || userMessageCount >= 5;
   if (!hasMinimumData) {
     return {
       score: 0,
@@ -73,14 +137,15 @@ export async function generateCategoryScore(
       keyPatterns: [],
       progressIndicators: [],
       areasForGrowth: [],
-      confidenceLevel: 'low'
+      confidenceLevel: 'low',
+      evidenceSnippets: []
     };
   }
 
-  // Generate score using GPT-4o
+  // Generate score using GPT-4o with structured output
   const systemPrompt = `You are an expert psychologist specializing in ${category.name}.
 
-Your task is to analyze user journal entries and chat conversations to generate a score (0-100) that reflects their current level in this category.
+Analyze user journal entries and chat conversations to generate a score (0-100) that reflects their current level in this category.
 
 CATEGORY: ${category.name}
 DESCRIPTION: ${category.description}
@@ -91,23 +156,14 @@ ${category.scoringCriteria}
 FOCUS AREAS:
 ${category.chatFocusAreas.join('\n')}
 
-Analyze the provided data and return a JSON object with:
-{
-  "score": <number 0-100>,
-  "reasoning": "<2-3 sentences explaining the score>",
-  "keyPatterns": ["<pattern 1>", "<pattern 2>", "<pattern 3>"],
-  "progressIndicators": ["<positive sign 1>", "<positive sign 2>"],
-  "areasForGrowth": ["<area 1>", "<area 2>", "<area 3>"],
-  "confidenceLevel": "<low|medium|high>"
-}
-
 Be honest and direct. The user wants the truth, not flattery. If you see concerning patterns, include them in areasForGrowth.
+
+In evidenceSnippets, include 2-5 specific quotes or paraphrases from the journal/chat that support your analysis. These should be direct examples that illustrate the patterns you've identified.
+
 Confidence level should be:
 - "low" if there's insufficient data or contradictory signals
 - "medium" if there's moderate data showing consistent patterns
-- "high" if there's substantial data with clear, consistent patterns
-
-Return ONLY valid JSON, no markdown formatting.`;
+- "high" if there's substantial data with clear, consistent patterns`;
 
   const userPrompt = `=== JOURNAL ENTRIES (last ${lookbackDays} days) ===
 ${journalContext || '(No recent journal entries)'}
@@ -125,24 +181,21 @@ Generate a ${category.name} score based on this data.`;
         { role: "user", content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 1000
+      max_tokens: 1500,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "category_score_analysis",
+          strict: true,
+          schema: SCORE_RESPONSE_SCHEMA
+        }
+      }
     });
 
     const responseText = completion.choices[0]?.message?.content?.trim() || '{}';
     
-    // Parse JSON response
-    let result: CategoryScoreResult;
-    try {
-      result = JSON.parse(responseText);
-    } catch (parseError) {
-      // If JSON parsing fails, try to extract from markdown code block
-      const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[1]);
-      } else {
-        throw new Error('Failed to parse AI response as JSON');
-      }
-    }
+    // Parse structured JSON response
+    const result: CategoryScoreResult = JSON.parse(responseText);
 
     // Validate and clamp score
     result.score = Math.max(0, Math.min(100, result.score));
@@ -151,8 +204,115 @@ Generate a ${category.name} score based on this data.`;
 
   } catch (error) {
     console.error('Error generating category score:', error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to generate category score: ${error.message}`);
+    }
     throw new Error('Failed to generate category score');
   }
+}
+
+/**
+ * Generate and persist a category score to the database
+ * @param userId - User ID
+ * @param categoryId - Category ID to score
+ * @param periodType - 'daily' or 'weekly'
+ * @param lookbackDays - Number of days to analyze (default 7)
+ */
+export async function generateAndPersistCategoryScore(
+  userId: string,
+  categoryId: string,
+  periodType: 'daily' | 'weekly' = 'daily',
+  lookbackDays: number = 7
+): Promise<CategoryScoreResult & { scoreId: string }> {
+  // Generate the score
+  const scoreResult = await generateCategoryScore(userId, categoryId, lookbackDays);
+
+  // Don't persist if insufficient data (score would be 0)
+  if (scoreResult.score === 0 && scoreResult.confidenceLevel === 'low') {
+    throw new Error(scoreResult.reasoning);
+  }
+
+  // Determine period boundaries
+  const now = new Date();
+  const periodStart = new Date(now);
+  periodStart.setHours(0, 0, 0, 0);
+  
+  if (periodType === 'weekly') {
+    const dayOfWeek = periodStart.getDay();
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    periodStart.setDate(periodStart.getDate() - daysToMonday);
+  }
+
+  const periodEnd = new Date(periodStart);
+  if (periodType === 'daily') {
+    periodEnd.setDate(periodEnd.getDate() + 1);
+  } else {
+    periodEnd.setDate(periodEnd.getDate() + 7);
+  }
+
+  // Check for existing score with exact (user, category, periodType, periodStart) match
+  // This prevents duplicates even with different lookbackDays
+  const allScores = await storage.getCategoryScores(userId, categoryId, periodType, 1);
+  const existingScore = allScores.find(score => 
+    new Date(score.periodStart).getTime() === periodStart.getTime()
+  );
+
+  if (existingScore) {
+    console.log(`Score already exists for user ${userId}, category ${categoryId}, period ${periodType}, periodStart ${periodStart.toISOString()}`);
+    // Return existing score data with all fields from scoreResult
+    return {
+      score: existingScore.score,
+      reasoning: existingScore.reasoning || scoreResult.reasoning,
+      keyPatterns: existingScore.keyPatterns || scoreResult.keyPatterns,
+      progressIndicators: existingScore.progressIndicators || scoreResult.progressIndicators,
+      areasForGrowth: existingScore.areasForGrowth || scoreResult.areasForGrowth,
+      confidenceLevel: (existingScore.confidenceLevel as any) || scoreResult.confidenceLevel,
+      evidenceSnippets: (existingScore.evidenceSnippets as any) || scoreResult.evidenceSnippets,
+      scoreId: existingScore.id
+    };
+  }
+
+  // Calculate contributors metadata
+  const cutoffDate = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
+  const journalEntries = await storage.getJournalEntriesByUserId(userId);
+  const conversations = await storage.getConversationsByUserId(userId);
+  
+  const recentJournalCount = journalEntries.filter(j => 
+    new Date(j.createdAt) >= cutoffDate
+  ).length;
+
+  // Count only user messages (not assistant responses)
+  let userMessageCount = 0;
+  for (const conv of conversations.slice(0, 3)) {
+    const messages = await storage.getMessagesByConversationId(conv.id);
+    userMessageCount += messages.filter(m => 
+      m.role === 'user' && new Date(m.createdAt) >= cutoffDate
+    ).length;
+  }
+
+  // Persist to database
+  const persistedScore = await storage.createCategoryScore({
+    userId,
+    categoryId,
+    periodType,
+    periodStart,
+    periodEnd,
+    score: scoreResult.score,
+    delta: null,
+    reasoning: scoreResult.reasoning,
+    keyPatterns: scoreResult.keyPatterns,
+    progressIndicators: scoreResult.progressIndicators,
+    areasForGrowth: scoreResult.areasForGrowth,
+    confidenceLevel: scoreResult.confidenceLevel,
+    evidenceSnippets: scoreResult.evidenceSnippets as any,
+    contributors: {
+      journalCount: recentJournalCount,
+      messageCount: userMessageCount,
+      lookbackDays
+    }
+  });
+
+  return { ...scoreResult, scoreId: persistedScore.id };
 }
 
 /**
