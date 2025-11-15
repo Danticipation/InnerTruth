@@ -19,6 +19,32 @@ const suggestedPrompts = [
   "What are your current goals?"
 ];
 
+// Helper function to strip markdown formatting for TTS
+function stripMarkdownForSpeech(text: string): string {
+  return text
+    // Remove bold/italic asterisks and underscores
+    .replace(/\*\*\*(.+?)\*\*\*/g, '$1')  // Bold+italic
+    .replace(/\*\*(.+?)\*\*/g, '$1')      // Bold
+    .replace(/\*(.+?)\*/g, '$1')          // Italic
+    .replace(/___(.+?)___/g, '$1')        // Bold+italic underscores
+    .replace(/__(.+?)__/g, '$1')          // Bold underscores
+    .replace(/_(.+?)_/g, '$1')            // Italic underscores
+    // Remove strikethrough
+    .replace(/~~(.+?)~~/g, '$1')
+    // Remove code formatting
+    .replace(/`(.+?)`/g, '$1')
+    // Remove headers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove blockquotes
+    .replace(/^>\s+/gm, '')
+    // Remove list markers
+    .replace(/^[\*\-\+]\s+/gm, '')
+    .replace(/^\d+\.\s+/gm, '')
+    // Clean up any remaining isolated asterisks or underscores
+    .replace(/[\*_]/g, '')
+    .trim();
+}
+
 export function ChatInterface() {
   const [conversationId, setConversationId] = useState<string | null>(() => {
     return sessionStorage.getItem("currentConversationId");
@@ -134,7 +160,7 @@ export function ChatInterface() {
     ) {
       latestAiMessageRef.current = latestMessage.id;
       setPendingMessageId(latestMessage.id);
-      speak(latestMessage.content);
+      speak(stripMarkdownForSpeech(latestMessage.content));
     }
   }, [messages, autoPlayEnabled, isSpeaking, pendingMessageId, speak]);
 
@@ -163,6 +189,13 @@ export function ChatInterface() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, sendMessageMutation.isPending]);
+
+  // Reset initialization when component unmounts to allow reload on remount
+  useEffect(() => {
+    return () => {
+      setIsInitialized(false);
+    };
+  }, []);
 
   useEffect(() => {
     const loadOrCreateConversation = async () => {
@@ -262,7 +295,7 @@ export function ChatInterface() {
     // Set pending ID and start playback
     // The actual speaking ID will be set in onStart callback when playback begins
     setPendingMessageId(messageId);
-    speak(content);
+    speak(stripMarkdownForSpeech(content));
   };
 
   const handlePromptClick = (prompt: string) => {

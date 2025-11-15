@@ -30,8 +30,8 @@ Mirror utilizes a modern web stack with a focus on AI-driven personality analysi
 - **AI Memory System**: Asynchronous GPT-4o calls extract, store, and deduplicate facts from conversations and journal entries into a PostgreSQL-based memory system. These facts (up to 20 per interaction) are injected into AI prompts to provide personalized responses.
 - **Speech Integration**:
     - **Speech-to-Text (STT)**: Browser-based Web Speech API for real-time voice input (Chrome/Edge).
-    - **Text-to-Speech (TTS)**: Eleven Labs integration for natural, high-quality AI voice responses with server-side API calls for security. Includes auto-play toggle and visual feedback.
-- **Conversation Management**: Persistent conversation history using session storage, with a three-tier loading priority (stored ID, most recent, new) and a "New Chat" button.
+    - **Text-to-Speech (TTS)**: Eleven Labs integration for natural, high-quality AI voice responses with server-side API calls for security. Includes auto-play toggle, visual feedback, and markdown stripping to prevent literal reading of formatting symbols (asterisks, underscores, etc.).
+- **Conversation Management**: Persistent conversation history with PostgreSQL storage. All conversations start with a welcome message saved to the database (not just client state), ensuring data persists across server restarts. Three-tier loading priority: stored ID, most recent, new conversation with "New Chat" button.
 - **Journal Management**: Features include saving, editing, and deleting journal entries with ownership verification and automatic AI analysis triggers.
 - **Personality Analysis**:
     - **Continuous Insight Generation**: Level 1 analysis triggered on journal saves (min 2 entries), analyzing up to 10 journal entries + recent conversations to generate Blind Spots and Growth Opportunities.
