@@ -2,9 +2,16 @@ import { storage } from "./storage";
 import { getCategoryById } from "./categories";
 import OpenAI from "openai";
 
+// Initialize OpenAI client with fallbacks for both Replit AI Integrations and standard OpenAI
+const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
+if (!apiKey) {
+  console.error("ERROR: No OpenAI API key configured. Set either AI_INTEGRATIONS_OPENAI_API_KEY or OPENAI_API_KEY");
+  throw new Error("OpenAI API key not configured");
+}
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "sk-fake-key-for-replit-ai",
-  baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
+  apiKey,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL ?? "https://api.openai.com/v1"
 });
 
 export interface CategoryScoreResult {
@@ -66,7 +73,8 @@ const SCORE_RESPONSE_SCHEMA = {
           excerpt: { type: "string", description: "Relevant quote or paraphrase" },
           date: { type: "string", description: "ISO date string" }
         },
-        required: ["source", "excerpt", "date"]
+        required: ["source", "excerpt", "date"],
+        additionalProperties: false
       },
       minItems: 0,
       maxItems: 5,
