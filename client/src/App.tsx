@@ -12,6 +12,7 @@ import Chat from "@/pages/Chat";
 import Journal from "@/pages/Journal";
 import Insights from "@/pages/Insights";
 import PersonalityReflection from "@/pages/PersonalityReflection";
+import IntakeAssessment from "@/pages/IntakeAssessment";
 import Profile from "@/pages/Profile";
 import CategoryOnboarding from "@/pages/CategoryOnboarding";
 import NotFound from "@/pages/not-found";
@@ -35,6 +36,7 @@ function Router() {
         <Route path="/journal" component={Journal} />
         <Route path="/insights" component={Insights} />
         <Route path="/reflection" component={PersonalityReflection} />
+        <Route path="/assessment" component={IntakeAssessment} />
         <Route path="/profile" component={Profile} />
         <Route component={NotFound} />
       </Switch>

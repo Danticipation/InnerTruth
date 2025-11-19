@@ -415,10 +415,12 @@ export function DashboardOverview() {
               <span>Write Journal Entry</span>
             </Button>
           </Link>
-          <Button className="h-auto py-6 flex-col gap-2" data-testid="button-take-assessment">
-            <ClipboardCheck className="h-6 w-6" />
-            <span>Take Assessment</span>
-          </Button>
+          <Link href="/assessment">
+            <Button className="h-auto py-6 flex-col gap-2 w-full" data-testid="button-take-assessment">
+              <ClipboardCheck className="h-6 w-6" />
+              <span>Take Assessment</span>
+            </Button>
+          </Link>
         </CardContent>
       </Card>
     </div>

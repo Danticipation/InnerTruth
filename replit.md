@@ -30,8 +30,9 @@ Mirror utilizes a modern web stack with a focus on AI-driven personality analysi
 - **AI Memory System**: Asynchronous GPT-4o calls extract, store, and deduplicate facts from conversations and journal entries into a PostgreSQL-based memory system. These facts (up to 20 per interaction) are injected into AI prompts to provide personalized responses.
 - **Speech Integration**:
     - **Speech-to-Text (STT)**: Browser-based Web Speech API for real-time voice input (Chrome/Edge).
-    - **Text-to-Speech (TTS)**: Eleven Labs integration for natural, high-quality AI voice responses with server-side API calls for security. Includes auto-play toggle, visual feedback, and markdown stripping to prevent literal reading of formatting symbols (asterisks, underscores, etc.).
-    - **Auto-Play Handling**: Browser auto-play restrictions are gracefully handled with a user-friendly prompt when first blocked. After user clicks "Enable" once, auto-play works for the entire session. Manual speaker buttons always work regardless of browser restrictions.
+    - **Text-to-Speech (TTS)**: Eleven Labs integration for natural, high-quality AI voice responses with server-side API calls for security. Includes markdown stripping to prevent literal reading of formatting symbols (asterisks, underscores, etc.).
+    - **Section-Level Playback**: Individual TTS play buttons on each section of personality reflection (archetype, behavioral patterns, strengths, blind spots, etc.) to work within Eleven Labs' 10k character limit. Each section can be played independently.
+    - **Journal TTS**: Text-to-speech playback for individual journal entries with speaker button controls.
 - **Conversation Management**: Persistent conversation history with PostgreSQL storage. All conversations start with a welcome message saved to the database (not just client state), ensuring data persists across server restarts. Three-tier loading priority: stored ID, most recent, new conversation with "New Chat" button.
 - **Journal Management**: Features include saving, editing, and deleting journal entries with ownership verification and automatic AI analysis triggers.
 - **Personality Analysis**:
@@ -44,6 +45,7 @@ Mirror utilizes a modern web stack with a focus on AI-driven personality analysi
 - **Digital Journal**: Private journaling with prompts, automatic word count, and AI analysis upon saving.
 - **Personality Dashboard**: Displays live stats, AI-analyzed Big 5 traits, core behavioral patterns, blind spots, and growth opportunities.
 - **Memory System**: GPT-4o extracts and stores facts from user interactions, providing personalized context to AI responses.
+- **Comprehensive Intake Assessment**: 5-step guided questionnaire collecting basic information, life satisfaction ratings, Big 5 personality self-assessments, current challenges, and goals. Saves as a special journal entry for AI analysis to personalize insights.
 
 ### API Endpoints
 **Core Features:**
