@@ -11,6 +11,7 @@ import type { Message, Conversation } from "@shared/schema";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useToast } from "@/hooks/use-toast";
+import { stripMarkdownForSpeech } from "@/lib/utils";
 
 const suggestedPrompts = [
   "What's been on your mind lately?",
@@ -18,32 +19,6 @@ const suggestedPrompts = [
   "How do you handle stress?",
   "What are your current goals?"
 ];
-
-// Helper function to strip markdown formatting for TTS
-function stripMarkdownForSpeech(text: string): string {
-  return text
-    // Remove bold/italic asterisks and underscores
-    .replace(/\*\*\*(.+?)\*\*\*/g, '$1')  // Bold+italic
-    .replace(/\*\*(.+?)\*\*/g, '$1')      // Bold
-    .replace(/\*(.+?)\*/g, '$1')          // Italic
-    .replace(/___(.+?)___/g, '$1')        // Bold+italic underscores
-    .replace(/__(.+?)__/g, '$1')          // Bold underscores
-    .replace(/_(.+?)_/g, '$1')            // Italic underscores
-    // Remove strikethrough
-    .replace(/~~(.+?)~~/g, '$1')
-    // Remove code formatting
-    .replace(/`(.+?)`/g, '$1')
-    // Remove headers
-    .replace(/^#{1,6}\s+/gm, '')
-    // Remove blockquotes
-    .replace(/^>\s+/gm, '')
-    // Remove list markers
-    .replace(/^[\*\-\+]\s+/gm, '')
-    .replace(/^\d+\.\s+/gm, '')
-    // Clean up any remaining isolated asterisks or underscores
-    .replace(/[\*_]/g, '')
-    .trim();
-}
 
 export function ChatInterface() {
   const [conversationId, setConversationId] = useState<string | null>(() => {

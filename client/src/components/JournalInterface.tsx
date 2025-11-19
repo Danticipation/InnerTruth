@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Save, Lightbulb, Calendar, Pencil, Trash2, X } from "lucide-react";
+import { Save, Lightbulb, Calendar, Pencil, Trash2, X, Volume2, VolumeX } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { JournalEntry } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { stripMarkdownForSpeech } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +43,25 @@ export function JournalInterface() {
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [editContent, setEditContent] = useState("");
   const [deletingEntry, setDeletingEntry] = useState<JournalEntry | null>(null);
+  const [speakingEntryId, setSpeakingEntryId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech({
+    onStart: () => {
+      // TTS started successfully
+    },
+    onEnd: () => {
+      setSpeakingEntryId(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Speech Error",
+        description: "Failed to play audio. Please try again.",
+        variant: "destructive",
+      });
+      setSpeakingEntryId(null);
+    },
+  });
 
   const { data: previousEntries = [] } = useQuery<JournalEntry[]>({
     queryKey: ["/api/journal-entries"],
@@ -110,6 +130,19 @@ export function JournalInterface() {
   const handleSave = () => {
     if (!entry.trim()) return;
     saveEntryMutation.mutate();
+  };
+
+  const handleSpeakEntry = (entryId: string, content: string) => {
+    // If clicking the same entry that's currently speaking, stop it
+    if (speakingEntryId === entryId) {
+      stopSpeaking();
+      setSpeakingEntryId(null);
+      return;
+    }
+    
+    // Start speaking this entry
+    setSpeakingEntryId(entryId);
+    speak(stripMarkdownForSpeech(content), true); // Mark as user-initiated
   };
 
   return (
@@ -203,6 +236,20 @@ export function JournalInterface() {
                           <Badge variant="secondary" className="text-xs">
                             {prev.wordCount}w
                           </Badge>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 sm:h-8 sm:w-8"
+                            onClick={() => handleSpeakEntry(prev.id, prev.content)}
+                            data-testid={`button-speak-${prev.id}`}
+                            title={speakingEntryId === prev.id ? "Stop reading" : "Read aloud"}
+                          >
+                            {speakingEntryId === prev.id && isSpeaking ? (
+                              <VolumeX className="h-3 w-3" />
+                            ) : (
+                              <Volume2 className="h-3 w-3" />
+                            )}
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
