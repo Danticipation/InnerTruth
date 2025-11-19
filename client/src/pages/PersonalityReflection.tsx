@@ -92,7 +92,7 @@ const StatCard = ({ icon: Icon, label, value, description }: { icon: any; label:
 );
 
 export default function PersonalityReflection() {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [playingSection, setPlayingSection] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: reflection, isLoading, error } = useQuery<PersonalityReflection>({
@@ -101,10 +101,10 @@ export default function PersonalityReflection() {
 
   const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech({
     onStart: () => {
-      setIsPlaying(true);
+      // Playing state is tracked by playingSection
     },
     onEnd: () => {
-      setIsPlaying(false);
+      setPlayingSection(null);
     },
     onError: (error) => {
       toast({
@@ -112,7 +112,7 @@ export default function PersonalityReflection() {
         description: "Failed to play audio. Please try again.",
         variant: "destructive",
       });
-      setIsPlaying(false);
+      setPlayingSection(null);
     },
   });
 
@@ -125,27 +125,29 @@ export default function PersonalityReflection() {
     },
   });
 
-  const handlePlayReflection = () => {
-    if (!reflection) return;
-
-    // If already playing, stop it
-    if (isPlaying) {
+  const handlePlaySection = (sectionName: string, text: string) => {
+    // If this section is already playing, stop it
+    if (playingSection === sectionName) {
       stopSpeaking();
-      setIsPlaying(false);
+      setPlayingSection(null);
       return;
     }
 
-    // Build sections separately (Eleven Labs has 10k char limit)
-    // We'll just play the archetype and summary for now (the most important parts)
-    const mainText = `
+    // Start playing this section
+    setPlayingSection(sectionName);
+    speak(stripMarkdownForSpeech(text), true);
+  };
+
+  const handlePlayArchetype = () => {
+    if (!reflection) return;
+    const text = `
 Your Comprehensive Personality Reflection.
 
 Your Personality Archetype: ${reflection.coreTraits.archetype}.
 
 ${reflection.summary}
     `.trim();
-
-    speak(stripMarkdownForSpeech(mainText), true); // Mark as user-initiated
+    handlePlaySection('archetype', text);
   };
 
   if (isLoading) {
@@ -297,38 +299,16 @@ ${reflection.summary}
               Generated {new Date(reflection.createdAt).toLocaleDateString()} • Deep AI Analysis
             </p>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button 
-              onClick={handlePlayReflection}
-              variant={isPlaying ? "default" : "outline"}
-              size="sm"
-              className="sm:size-default flex-1 sm:flex-initial"
-              data-testid="button-play-reflection"
-              title={isPlaying ? "Stop reading" : "Read aloud"}
-            >
-              {isPlaying && isSpeaking ? (
-                <>
-                  <VolumeX className="mr-2 h-4 w-4" />
-                  Stop
-                </>
-              ) : (
-                <>
-                  <Volume2 className="mr-2 h-4 w-4" />
-                  Play
-                </>
-              )}
-            </Button>
-            <Button 
-              onClick={() => generateMutation.mutate()}
-              variant="outline"
-              size="sm"
-              className="sm:size-default flex-1 sm:flex-initial"
-              data-testid="button-refresh-reflection"
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Regenerate
-            </Button>
-          </div>
+          <Button 
+            onClick={() => generateMutation.mutate()}
+            variant="outline"
+            size="sm"
+            className="sm:size-default w-full sm:w-auto"
+            data-testid="button-refresh-reflection"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Regenerate
+          </Button>
         </div>
 
         {/* Statistics Grid */}
@@ -362,12 +342,27 @@ ${reflection.summary}
         {/* Archetype & Summary */}
         <Card className="border-2 border-primary/20">
           <CardHeader className="p-4 sm:p-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
-              <div>
-                <CardTitle className="text-lg sm:text-xl md:text-2xl">Your Personality Archetype</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Core identity and essence</CardDescription>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+                <div>
+                  <CardTitle className="text-lg sm:text-xl md:text-2xl">Your Personality Archetype</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Core identity and essence</CardDescription>
+                </div>
               </div>
+              <Button
+                size="icon"
+                variant={playingSection === 'archetype' ? "default" : "ghost"}
+                onClick={handlePlayArchetype}
+                data-testid="button-play-archetype"
+                title={playingSection === 'archetype' ? "Stop reading" : "Read aloud"}
+              >
+                {playingSection === 'archetype' && isSpeaking ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
@@ -406,11 +401,28 @@ ${reflection.summary}
         {/* Behavioral Patterns */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5" />
-              Behavioral Patterns
-            </CardTitle>
-            <CardDescription>How you act and react in the world</CardDescription>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Behavioral Patterns
+                </CardTitle>
+                <CardDescription>How you act and react in the world</CardDescription>
+              </div>
+              <Button
+                size="icon"
+                variant={playingSection === 'behavioral' ? "default" : "ghost"}
+                onClick={() => handlePlaySection('behavioral', `Behavioral Patterns:\n${reflection.behavioralPatterns.map((p, i) => `${i + 1}. ${p}`).join('\n')}`)}
+                data-testid="button-play-behavioral"
+                title={playingSection === 'behavioral' ? "Stop reading" : "Read aloud"}
+              >
+                {playingSection === 'behavioral' && isSpeaking ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
@@ -427,11 +439,28 @@ ${reflection.summary}
         {/* Emotional Patterns */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5" />
-              Emotional Patterns
-            </CardTitle>
-            <CardDescription>How you process and express feelings</CardDescription>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Heart className="h-5 w-5" />
+                  Emotional Patterns
+                </CardTitle>
+                <CardDescription>How you process and express feelings</CardDescription>
+              </div>
+              <Button
+                size="icon"
+                variant={playingSection === 'emotional' ? "default" : "ghost"}
+                onClick={() => handlePlaySection('emotional', `Emotional Patterns:\n${reflection.emotionalPatterns.map((p, i) => `${i + 1}. ${p}`).join('\n')}`)}
+                data-testid="button-play-emotional"
+                title={playingSection === 'emotional' ? "Stop reading" : "Read aloud"}
+              >
+                {playingSection === 'emotional' && isSpeaking ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
@@ -448,11 +477,28 @@ ${reflection.summary}
         {/* Relationship Dynamics */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Relationship Dynamics
-            </CardTitle>
-            <CardDescription>How you connect with others</CardDescription>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Relationship Dynamics
+                </CardTitle>
+                <CardDescription>How you connect with others</CardDescription>
+              </div>
+              <Button
+                size="icon"
+                variant={playingSection === 'relationships' ? "default" : "ghost"}
+                onClick={() => handlePlaySection('relationships', `Relationship Dynamics:\n${reflection.relationshipDynamics.map((d, i) => `${i + 1}. ${d}`).join('\n')}`)}
+                data-testid="button-play-relationships"
+                title={playingSection === 'relationships' ? "Stop reading" : "Read aloud"}
+              >
+                {playingSection === 'relationships' && isSpeaking ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
@@ -469,11 +515,28 @@ ${reflection.summary}
         {/* Coping Mechanisms */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Coping Mechanisms
-            </CardTitle>
-            <CardDescription>How you handle stress and challenges</CardDescription>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Coping Mechanisms
+                </CardTitle>
+                <CardDescription>How you handle stress and challenges</CardDescription>
+              </div>
+              <Button
+                size="icon"
+                variant={playingSection === 'coping' ? "default" : "ghost"}
+                onClick={() => handlePlaySection('coping', `Coping Mechanisms:\n${reflection.copingMechanisms.map((m, i) => `${i + 1}. ${m}`).join('\n')}`)}
+                data-testid="button-play-coping"
+                title={playingSection === 'coping' ? "Stop reading" : "Read aloud"}
+              >
+                {playingSection === 'coping' && isSpeaking ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
@@ -491,11 +554,28 @@ ${reflection.summary}
           {/* Strengths */}
           <Card>
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
-                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
-                Strengths
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Your superpowers</CardDescription>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+                    <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Strengths
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Your superpowers</CardDescription>
+                </div>
+                <Button
+                  size="icon"
+                  variant={playingSection === 'strengths' ? "default" : "ghost"}
+                  onClick={() => handlePlaySection('strengths', `Strengths:\n${reflection.strengths.map((s, i) => `${i + 1}. ${s}`).join('\n')}`)}
+                  data-testid="button-play-strengths"
+                  title={playingSection === 'strengths' ? "Stop reading" : "Read aloud"}
+                >
+                  {playingSection === 'strengths' && isSpeaking ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
               <ul className="space-y-1.5 sm:space-y-2">
@@ -512,11 +592,28 @@ ${reflection.summary}
           {/* Blind Spots */}
           <Card>
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
-                <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
-                Blind Spots
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">What you can't see about yourself</CardDescription>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Blind Spots
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">What you can't see about yourself</CardDescription>
+                </div>
+                <Button
+                  size="icon"
+                  variant={playingSection === 'blindspots' ? "default" : "ghost"}
+                  onClick={() => handlePlaySection('blindspots', `Blind Spots:\n${reflection.blindSpots.map((b, i) => `${i + 1}. ${b}`).join('\n')}`)}
+                  data-testid="button-play-blindspots"
+                  title={playingSection === 'blindspots' ? "Stop reading" : "Read aloud"}
+                >
+                  {playingSection === 'blindspots' && isSpeaking ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
               <ul className="space-y-1.5 sm:space-y-2">
@@ -534,11 +631,28 @@ ${reflection.summary}
         {/* Growth Areas */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Growth Areas
-            </CardTitle>
-            <CardDescription>Opportunities for development</CardDescription>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Growth Areas
+                </CardTitle>
+                <CardDescription>Opportunities for development</CardDescription>
+              </div>
+              <Button
+                size="icon"
+                variant={playingSection === 'growth' ? "default" : "ghost"}
+                onClick={() => handlePlaySection('growth', `Growth Areas:\n${reflection.growthAreas.map((a, i) => `${i + 1}. ${a}`).join('\n')}`)}
+                data-testid="button-play-growth"
+                title={playingSection === 'growth' ? "Stop reading" : "Read aloud"}
+              >
+                {playingSection === 'growth' && isSpeaking ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
@@ -555,11 +669,28 @@ ${reflection.summary}
         {/* Values & Beliefs */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5" />
-              Values & Beliefs
-            </CardTitle>
-            <CardDescription>What drives your decisions</CardDescription>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Lightbulb className="h-5 w-5" />
+                  Values & Beliefs
+                </CardTitle>
+                <CardDescription>What drives your decisions</CardDescription>
+              </div>
+              <Button
+                size="icon"
+                variant={playingSection === 'values' ? "default" : "ghost"}
+                onClick={() => handlePlaySection('values', `Values and Beliefs:\n${reflection.valuesAndBeliefs.map((v, i) => `${i + 1}. ${v}`).join('\n')}`)}
+                data-testid="button-play-values"
+                title={playingSection === 'values' ? "Stop reading" : "Read aloud"}
+              >
+                {playingSection === 'values' && isSpeaking ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
@@ -576,11 +707,28 @@ ${reflection.summary}
         {/* Therapeutic Insights */}
         <Card className="border-2 border-purple-500/20">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-purple-500" />
-              Therapeutic Insights
-            </CardTitle>
-            <CardDescription>Deep psychological observations</CardDescription>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-purple-500" />
+                  Therapeutic Insights
+                </CardTitle>
+                <CardDescription>Deep psychological observations</CardDescription>
+              </div>
+              <Button
+                size="icon"
+                variant={playingSection === 'therapeutic' ? "default" : "ghost"}
+                onClick={() => handlePlaySection('therapeutic', `Therapeutic Insights:\n${reflection.therapeuticInsights.map((t, i) => `${i + 1}. ${t}`).join('\n')}`)}
+                data-testid="button-play-therapeutic"
+                title={playingSection === 'therapeutic' ? "Stop reading" : "Read aloud"}
+              >
+                {playingSection === 'therapeutic' && isSpeaking ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-4">
