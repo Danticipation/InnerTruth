@@ -149,6 +149,13 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
 
       audio.addEventListener('error', (e) => {
         if (currentRequestId === requestIdRef.current) {
+          // Ignore errors caused by cleanup (when src is cleared)
+          // Error code 4 = MEDIA_ELEMENT_ERROR: Empty src attribute
+          if (audio.error?.code === 4 && !audio.src) {
+            console.log('Ignoring error from cleanup (empty src)');
+            return;
+          }
+          
           console.error('Audio playback error event:', e, 'Audio element:', audio, 'Error code:', audio.error?.code, 'Error message:', audio.error?.message);
           setIsSpeaking(false);
           setIsLoading(false);
