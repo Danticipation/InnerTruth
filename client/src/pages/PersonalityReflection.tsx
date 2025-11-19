@@ -135,43 +135,17 @@ export default function PersonalityReflection() {
       return;
     }
 
-    // Build a comprehensive text from all sections
-    const fullText = `
+    // Build sections separately (Eleven Labs has 10k char limit)
+    // We'll just play the archetype and summary for now (the most important parts)
+    const mainText = `
 Your Comprehensive Personality Reflection.
 
 Your Personality Archetype: ${reflection.coreTraits.archetype}.
 
 ${reflection.summary}
-
-Behavioral Patterns:
-${reflection.behavioralPatterns.map((p, i) => `${i + 1}. ${p}`).join('\n')}
-
-Emotional Patterns:
-${reflection.emotionalPatterns.map((p, i) => `${i + 1}. ${p}`).join('\n')}
-
-Relationship Dynamics:
-${reflection.relationshipDynamics.map((d, i) => `${i + 1}. ${d}`).join('\n')}
-
-Coping Mechanisms:
-${reflection.copingMechanisms.map((m, i) => `${i + 1}. ${m}`).join('\n')}
-
-Strengths:
-${reflection.strengths.map((s, i) => `${i + 1}. ${s}`).join('\n')}
-
-Blind Spots:
-${reflection.blindSpots.map((b, i) => `${i + 1}. ${b}`).join('\n')}
-
-Growth Areas:
-${reflection.growthAreas.map((a, i) => `${i + 1}. ${a}`).join('\n')}
-
-Values and Beliefs:
-${reflection.valuesAndBeliefs.map((v, i) => `${i + 1}. ${v}`).join('\n')}
-
-Therapeutic Insights:
-${reflection.therapeuticInsights.map((t, i) => `${i + 1}. ${t}`).join('\n')}
     `.trim();
 
-    speak(stripMarkdownForSpeech(fullText), true); // Mark as user-initiated
+    speak(stripMarkdownForSpeech(mainText), true); // Mark as user-initiated
   };
 
   if (isLoading) {
