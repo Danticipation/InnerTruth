@@ -59,6 +59,8 @@ export function ChatInterface() {
     // Default to true if never set before
     return saved === null ? true : saved === "true";
   });
+  const [needsUserInteraction, setNeedsUserInteraction] = useState(false);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const latestAiMessageRef = useRef<string | null>(null);
   const { toast } = useToast();
@@ -82,6 +84,9 @@ export function ChatInterface() {
         setPendingMessageId(null);
       }
       
+      // Clear the "needs interaction" banner since playback started successfully
+      setNeedsUserInteraction(false);
+      
       // Stop listening when playback starts to prevent feedback
       if (isListening) {
         stopListening();
@@ -92,11 +97,17 @@ export function ChatInterface() {
       setPendingMessageId(null);
     },
     onError: (error) => {
-      toast({
-        title: "Speech Error",
-        description: "Failed to generate speech. Please try again.",
-        variant: "destructive",
-      });
+      // Only show error for non-autoplay issues
+      // Autoplay blocks are handled silently with the banner
+      if (autoPlayEnabled && !hasUserInteracted) {
+        setNeedsUserInteraction(true);
+      } else {
+        toast({
+          title: "Speech Error",
+          description: "Failed to generate speech. Please try again.",
+          variant: "destructive",
+        });
+      }
       setSpeakingMessageId(null);
       setPendingMessageId(null);
     },
@@ -163,6 +174,18 @@ export function ChatInterface() {
       speak(stripMarkdownForSpeech(latestMessage.content));
     }
   }, [messages, autoPlayEnabled, isSpeaking, pendingMessageId, speak]);
+
+  // Handle user interaction to enable auto-play
+  const handleEnableAutoPlay = () => {
+    setHasUserInteracted(true);
+    setNeedsUserInteraction(false);
+    
+    // Try to play the latest AI message
+    const latestAiMessage = messages.filter(m => m.role === "assistant").pop();
+    if (latestAiMessage) {
+      handleSpeakMessage(latestAiMessage.id, latestAiMessage.content);
+    }
+  };
 
   const { data: conversations, isLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"]
@@ -327,6 +350,27 @@ export function ChatInterface() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {needsUserInteraction && autoPlayEnabled && (
+        <Card className="border-primary/50 bg-primary/5" data-testid="card-enable-autoplay">
+          <CardContent className="flex items-center justify-between gap-3 p-3 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Volume2 className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+              <p className="text-xs sm:text-sm">
+                <span className="font-medium">Auto-play is ready!</span>
+                <span className="hidden sm:inline"> Click to enable AI voice responses.</span>
+              </p>
+            </div>
+            <Button 
+              size="sm" 
+              onClick={handleEnableAutoPlay}
+              data-testid="button-enable-autoplay"
+              className="shrink-0"
+            >
+              Enable
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       <Card data-testid="card-chat-interface">
         <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 p-4 sm:p-6">
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">

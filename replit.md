@@ -31,6 +31,7 @@ Mirror utilizes a modern web stack with a focus on AI-driven personality analysi
 - **Speech Integration**:
     - **Speech-to-Text (STT)**: Browser-based Web Speech API for real-time voice input (Chrome/Edge).
     - **Text-to-Speech (TTS)**: Eleven Labs integration for natural, high-quality AI voice responses with server-side API calls for security. Includes auto-play toggle, visual feedback, and markdown stripping to prevent literal reading of formatting symbols (asterisks, underscores, etc.).
+    - **Auto-Play Handling**: Browser auto-play restrictions are gracefully handled with a user-friendly prompt when first blocked. After user clicks "Enable" once, auto-play works for the entire session. Manual speaker buttons always work regardless of browser restrictions.
 - **Conversation Management**: Persistent conversation history with PostgreSQL storage. All conversations start with a welcome message saved to the database (not just client state), ensuring data persists across server restarts. Three-tier loading priority: stored ID, most recent, new conversation with "New Chat" button.
 - **Journal Management**: Features include saving, editing, and deleting journal entries with ownership verification and automatic AI analysis triggers.
 - **Personality Analysis**:

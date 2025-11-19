@@ -125,8 +125,18 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
           await audio.play();
           console.log('Audio playback started successfully');
         } catch (playError) {
-          console.error('audio.play() failed:', playError);
-          throw playError;
+          console.error('audio.play() failed (likely browser auto-play policy):', playError);
+          // Browser blocked auto-play - this is expected behavior
+          // Don't throw error for auto-play restrictions, just clean up silently
+          setIsSpeaking(false);
+          setIsLoading(false);
+          cleanup();
+          // Only call onError if it's not a NotAllowedError (browser auto-play block)
+          if (playError instanceof Error && playError.name !== 'NotAllowedError') {
+            options.onError?.(playError);
+          }
+          // For NotAllowedError, we'll handle it in the chat interface with a friendly prompt
+          return;
         }
       }
     } catch (error) {
