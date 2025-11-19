@@ -7,6 +7,10 @@ interface TextToSpeechOptions {
   onError?: (error: Error) => void;
 }
 
+// Global audio context to enable auto-play after first user interaction
+let globalAudioContext: AudioContext | null = null;
+let globalAudioUnlocked = false;
+
 export function useTextToSpeech(options: TextToSpeechOptions = {}) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,8 +41,44 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
     }
   }, []);
 
-  const speak = useCallback(async (text: string) => {
+  // Function to unlock audio playback on first user interaction
+  const unlockAudio = useCallback(async () => {
+    if (globalAudioUnlocked) return true;
+    
+    try {
+      // Create audio context if it doesn't exist
+      if (!globalAudioContext) {
+        globalAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      // Resume the context (requires user gesture)
+      if (globalAudioContext.state === 'suspended') {
+        await globalAudioContext.resume();
+      }
+      
+      // Create a silent buffer and play it to unlock audio
+      const buffer = globalAudioContext.createBuffer(1, 1, 22050);
+      const source = globalAudioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(globalAudioContext.destination);
+      source.start(0);
+      
+      globalAudioUnlocked = true;
+      console.log('Audio unlocked successfully');
+      return true;
+    } catch (e) {
+      console.error('Failed to unlock audio:', e);
+      return false;
+    }
+  }, []);
+
+  const speak = useCallback(async (text: string, userInitiated = false) => {
     if (!text) return;
+
+    // If this is user-initiated, unlock audio first
+    if (userInitiated) {
+      await unlockAudio();
+    }
 
     // Stop any existing playback before starting new one
     cleanup();
@@ -147,7 +187,7 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
         options.onError?.(error as Error);
       }
     }
-  }, [options, cleanup]);
+  }, [options, cleanup, unlockAudio]);
 
   const stop = useCallback(() => {
     cleanup();
@@ -161,5 +201,6 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
     stop,
     isSpeaking,
     isLoading,
+    unlockAudio,
   };
 }

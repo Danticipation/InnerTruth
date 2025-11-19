@@ -76,7 +76,7 @@ export function ChatInterface() {
     resetTranscript,
   } = useSpeechRecognition();
 
-  const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech({
+  const { speak, stop: stopSpeaking, isSpeaking, unlockAudio } = useTextToSpeech({
     onStart: () => {
       // When playback actually starts, update the speaking message ID
       if (pendingMessageId) {
@@ -179,14 +179,19 @@ export function ChatInterface() {
   }, [messages, autoPlayEnabled, isSpeaking, pendingMessageId, speak]);
 
   // Handle user interaction to enable auto-play
-  const handleEnableAutoPlay = () => {
+  const handleEnableAutoPlay = async () => {
+    // Unlock audio context first
+    await unlockAudio();
+    
     setHasUserInteracted(true);
     setNeedsUserInteraction(false);
     
     // Try to play the latest AI message
     const latestAiMessage = messages.filter(m => m.role === "assistant").pop();
     if (latestAiMessage) {
-      handleSpeakMessage(latestAiMessage.id, latestAiMessage.content);
+      // Mark as user-initiated so it unlocks audio
+      setPendingMessageId(latestAiMessage.id);
+      speak(stripMarkdownForSpeech(latestAiMessage.content), true);
     }
   };
 
@@ -321,7 +326,8 @@ export function ChatInterface() {
     // Set pending ID and start playback
     // The actual speaking ID will be set in onStart callback when playback begins
     setPendingMessageId(messageId);
-    speak(stripMarkdownForSpeech(content));
+    // Mark as user-initiated since this is a manual click
+    speak(stripMarkdownForSpeech(content), true);
   };
 
   const handlePromptClick = (prompt: string) => {
