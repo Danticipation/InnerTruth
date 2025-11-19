@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DashboardNav } from "@/components/DashboardNav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,8 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Brain, TrendingUp, Eye, Heart, Target, Lightbulb, Shield, Sparkles, RefreshCw, Loader2, Users, Zap, CheckCircle2 } from "lucide-react";
+import { Brain, TrendingUp, Eye, Heart, Target, Lightbulb, Shield, Sparkles, RefreshCw, Loader2, Users, Zap, CheckCircle2, Volume2, VolumeX } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { useToast } from "@/hooks/use-toast";
+import { stripMarkdownForSpeech } from "@/lib/utils";
 
 type PersonalityReflection = {
   id: string;
@@ -88,8 +92,28 @@ const StatCard = ({ icon: Icon, label, value, description }: { icon: any; label:
 );
 
 export default function PersonalityReflection() {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const { toast } = useToast();
+
   const { data: reflection, isLoading, error } = useQuery<PersonalityReflection>({
     queryKey: ["/api/personality-reflection"],
+  });
+
+  const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech({
+    onStart: () => {
+      setIsPlaying(true);
+    },
+    onEnd: () => {
+      setIsPlaying(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Speech Error",
+        description: "Failed to play audio. Please try again.",
+        variant: "destructive",
+      });
+      setIsPlaying(false);
+    },
   });
 
   const generateMutation = useMutation({
@@ -100,6 +124,55 @@ export default function PersonalityReflection() {
       queryClient.invalidateQueries({ queryKey: ["/api/personality-reflection"] });
     },
   });
+
+  const handlePlayReflection = () => {
+    if (!reflection) return;
+
+    // If already playing, stop it
+    if (isPlaying) {
+      stopSpeaking();
+      setIsPlaying(false);
+      return;
+    }
+
+    // Build a comprehensive text from all sections
+    const fullText = `
+Your Comprehensive Personality Reflection.
+
+Your Personality Archetype: ${reflection.coreTraits.archetype}.
+
+${reflection.summary}
+
+Behavioral Patterns:
+${reflection.behavioralPatterns.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+
+Emotional Patterns:
+${reflection.emotionalPatterns.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+
+Relationship Dynamics:
+${reflection.relationshipDynamics.map((d, i) => `${i + 1}. ${d}`).join('\n')}
+
+Coping Mechanisms:
+${reflection.copingMechanisms.map((m, i) => `${i + 1}. ${m}`).join('\n')}
+
+Strengths:
+${reflection.strengths.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+Blind Spots:
+${reflection.blindSpots.map((b, i) => `${i + 1}. ${b}`).join('\n')}
+
+Growth Areas:
+${reflection.growthAreas.map((a, i) => `${i + 1}. ${a}`).join('\n')}
+
+Values and Beliefs:
+${reflection.valuesAndBeliefs.map((v, i) => `${i + 1}. ${v}`).join('\n')}
+
+Therapeutic Insights:
+${reflection.therapeuticInsights.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+    `.trim();
+
+    speak(stripMarkdownForSpeech(fullText), true); // Mark as user-initiated
+  };
 
   if (isLoading) {
     return (
@@ -250,16 +323,38 @@ export default function PersonalityReflection() {
               Generated {new Date(reflection.createdAt).toLocaleDateString()} • Deep AI Analysis
             </p>
           </div>
-          <Button 
-            onClick={() => generateMutation.mutate()}
-            variant="outline"
-            size="sm"
-            className="sm:size-default w-full sm:w-auto"
-            data-testid="button-refresh-reflection"
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Regenerate
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button 
+              onClick={handlePlayReflection}
+              variant={isPlaying ? "default" : "outline"}
+              size="sm"
+              className="sm:size-default flex-1 sm:flex-initial"
+              data-testid="button-play-reflection"
+              title={isPlaying ? "Stop reading" : "Read aloud"}
+            >
+              {isPlaying && isSpeaking ? (
+                <>
+                  <VolumeX className="mr-2 h-4 w-4" />
+                  Stop
+                </>
+              ) : (
+                <>
+                  <Volume2 className="mr-2 h-4 w-4" />
+                  Play
+                </>
+              )}
+            </Button>
+            <Button 
+              onClick={() => generateMutation.mutate()}
+              variant="outline"
+              size="sm"
+              className="sm:size-default flex-1 sm:flex-initial"
+              data-testid="button-refresh-reflection"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Regenerate
+            </Button>
+          </div>
         </div>
 
         {/* Statistics Grid */}
