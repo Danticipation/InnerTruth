@@ -140,7 +140,7 @@ Goals & Motivations:
                data.extraversionScore && data.agreeablenessScore && 
                data.emotionalStabilityScore;
       case 4:
-        return data.primaryChallenge && data.challengeDescription;
+        return data.primaryChallenge;
       case 5:
         return data.mainGoal && data.motivationLevel && data.supportNeeded;
       default:
@@ -281,6 +281,30 @@ Goals & Motivations:
             <p className="text-sm text-muted-foreground mb-4">
               Rate yourself on these personality dimensions from 1 (strongly disagree) to 10 (strongly agree)
             </p>
+            
+            {/* Debug helper - shows what's selected */}
+            {(!data.opennessScore || !data.conscientiousnessScore || !data.extraversionScore || !data.agreeablenessScore || !data.emotionalStabilityScore) && (
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md text-sm">
+                <p className="font-medium mb-2">Please rate all 5 personality traits to continue:</p>
+                <ul className="space-y-1 text-xs">
+                  <li className={data.opennessScore ? "text-green-500" : "text-yellow-500"}>
+                    {data.opennessScore ? "✓" : "○"} Openness to Experience {data.opennessScore && `(${data.opennessScore})`}
+                  </li>
+                  <li className={data.conscientiousnessScore ? "text-green-500" : "text-yellow-500"}>
+                    {data.conscientiousnessScore ? "✓" : "○"} Conscientiousness {data.conscientiousnessScore && `(${data.conscientiousnessScore})`}
+                  </li>
+                  <li className={data.extraversionScore ? "text-green-500" : "text-yellow-500"}>
+                    {data.extraversionScore ? "✓" : "○"} Extraversion {data.extraversionScore && `(${data.extraversionScore})`}
+                  </li>
+                  <li className={data.agreeablenessScore ? "text-green-500" : "text-yellow-500"}>
+                    {data.agreeablenessScore ? "✓" : "○"} Agreeableness {data.agreeablenessScore && `(${data.agreeablenessScore})`}
+                  </li>
+                  <li className={data.emotionalStabilityScore ? "text-green-500" : "text-yellow-500"}>
+                    {data.emotionalStabilityScore ? "✓" : "○"} Emotional Stability {data.emotionalStabilityScore && `(${data.emotionalStabilityScore})`}
+                  </li>
+                </ul>
+              </div>
+            )}
 
             <div className="space-y-3">
               <div>
@@ -397,15 +421,16 @@ Goals & Motivations:
             </div>
 
             <div className="space-y-3">
-              <Label htmlFor="challenge-desc">Tell us more about this challenge (optional)</Label>
+              <Label htmlFor="challenge-desc">Tell us more about this challenge (optional but helpful)</Label>
               <Textarea
                 id="challenge-desc"
-                placeholder="Describe what you're going through and how it's affecting you..."
+                placeholder="Describe what you're going through and how it's affecting you... (you can skip this if you prefer)"
                 className="min-h-[120px]"
                 value={data.challengeDescription || ''}
                 onChange={(e) => updateData('challengeDescription', e.target.value)}
                 data-testid="textarea-challenge"
               />
+              <p className="text-xs text-muted-foreground">You can leave this blank and still proceed to the next step</p>
             </div>
           </div>
         );
