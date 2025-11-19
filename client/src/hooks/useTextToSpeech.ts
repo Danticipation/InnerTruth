@@ -130,40 +130,45 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      audio.addEventListener('play', () => {
+      const handlePlay = () => {
         // Only update state if this is still the current request
         if (currentRequestId === requestIdRef.current) {
           setIsSpeaking(true);
           setIsLoading(false);
           options.onStart?.();
         }
-      });
+      };
 
-      audio.addEventListener('ended', () => {
+      const handleEnded = () => {
         if (currentRequestId === requestIdRef.current) {
           setIsSpeaking(false);
+          // Remove event listeners before cleanup to prevent error events
+          audio.removeEventListener('play', handlePlay);
+          audio.removeEventListener('ended', handleEnded);
+          audio.removeEventListener('error', handleError);
           cleanup();
           options.onEnd?.();
         }
-      });
+      };
 
-      audio.addEventListener('error', (e) => {
+      const handleError = (e: Event) => {
         if (currentRequestId === requestIdRef.current) {
-          // Ignore errors caused by cleanup (when src is cleared)
-          // Error code 4 = MEDIA_ELEMENT_ERROR: Empty src attribute
-          if (audio.error?.code === 4 && !audio.src) {
-            console.log('Ignoring error from cleanup (empty src)');
-            return;
-          }
-          
           console.error('Audio playback error event:', e, 'Audio element:', audio, 'Error code:', audio.error?.code, 'Error message:', audio.error?.message);
           setIsSpeaking(false);
           setIsLoading(false);
+          // Remove event listeners before cleanup
+          audio.removeEventListener('play', handlePlay);
+          audio.removeEventListener('ended', handleEnded);
+          audio.removeEventListener('error', handleError);
           cleanup();
           const error = new Error('Audio playback failed');
           options.onError?.(error);
         }
-      });
+      };
+
+      audio.addEventListener('play', handlePlay);
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('error', handleError);
 
       // Final check before playing
       if (currentRequestId === requestIdRef.current) {
