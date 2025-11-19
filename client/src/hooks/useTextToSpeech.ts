@@ -109,7 +109,7 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
 
       audio.addEventListener('error', (e) => {
         if (currentRequestId === requestIdRef.current) {
-          console.error('Audio playback error:', e, 'Audio element:', audio);
+          console.error('Audio playback error event:', e, 'Audio element:', audio, 'Error code:', audio.error?.code, 'Error message:', audio.error?.message);
           setIsSpeaking(false);
           setIsLoading(false);
           cleanup();
@@ -126,16 +126,14 @@ export function useTextToSpeech(options: TextToSpeechOptions = {}) {
           console.log('Audio playback started successfully');
         } catch (playError) {
           console.error('audio.play() failed (likely browser auto-play policy):', playError);
-          // Browser blocked auto-play - this is expected behavior
-          // Don't throw error for auto-play restrictions, just clean up silently
+          // Browser blocked auto-play - call onError to trigger the banner
           setIsSpeaking(false);
           setIsLoading(false);
           cleanup();
-          // Only call onError if it's not a NotAllowedError (browser auto-play block)
-          if (playError instanceof Error && playError.name !== 'NotAllowedError') {
+          // Always call onError - the chat interface will decide how to handle it
+          if (playError instanceof Error) {
             options.onError?.(playError);
           }
-          // For NotAllowedError, we'll handle it in the chat interface with a friendly prompt
           return;
         }
       }

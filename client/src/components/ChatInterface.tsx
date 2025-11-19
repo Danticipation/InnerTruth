@@ -97,11 +97,14 @@ export function ChatInterface() {
       setPendingMessageId(null);
     },
     onError: (error) => {
+      console.log('TTS onError triggered', { autoPlayEnabled, hasUserInteracted, error });
       // Only show error for non-autoplay issues
       // Autoplay blocks are handled silently with the banner
       if (autoPlayEnabled && !hasUserInteracted) {
+        console.log('Setting needsUserInteraction to true');
         setNeedsUserInteraction(true);
       } else {
+        console.log('Showing error toast instead of banner');
         toast({
           title: "Speech Error",
           description: "Failed to generate speech. Please try again.",
