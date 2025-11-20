@@ -7,6 +7,24 @@ export function cn(...inputs: ClassValue[]) {
 
 export function stripMarkdownForSpeech(text: string): string {
   return text
+    // Remove analytical format labels (trigger, action, consequence, etc.)
+    .replace(/\s*\(trigger\)/gi, '')
+    .replace(/\s*\(action\)/gi, '')
+    .replace(/\s*\(consequence\)/gi, '')
+    .replace(/\s*\(appraisal\)/gi, '')
+    .replace(/\s*\(emotional response\)/gi, '')
+    .replace(/\s*\(regulation attempt\)/gi, '')
+    .replace(/\s*\(response\)/gi, '')
+    .replace(/\s*\(regulation\)/gi, '')
+    // Remove square bracket analytical labels [TRIGGER], [ACTION], etc.
+    .replace(/\s*\[TRIGGER\]/gi, '')
+    .replace(/\s*\[ACTION\]/gi, '')
+    .replace(/\s*\[CONSEQUENCE\]/gi, '')
+    .replace(/\s*\[APPRAISAL\]/gi, '')
+    .replace(/\s*\[EMOTIONAL RESPONSE\]/gi, '')
+    .replace(/\s*\[REGULATION ATTEMPT\]/gi, '')
+    .replace(/\s*\[RESPONSE\]/gi, '')
+    .replace(/\s*\[REGULATION\]/gi, '')
     // Remove bold/italic asterisks and underscores
     .replace(/\*\*\*(.+?)\*\*\*/g, '$1')  // Bold+italic
     .replace(/\*\*(.+?)\*\*/g, '$1')      // Bold
