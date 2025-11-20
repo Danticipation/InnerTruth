@@ -401,7 +401,9 @@ FINAL CRITICAL REQUIREMENTS:
 Remember: They can get surface-level feedback anywhere. You're here to reveal what they genuinely don't know about themselves.`;
 
     try {
-      const completion = await openai.chat.completions.create({
+      // STEP 1: First pass - generate initial analysis
+      console.log('[TWO-STEP AI] Starting first pass - initial analysis generation...');
+      const firstPassCompletion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           { role: "system", content: systemMessage },
@@ -415,7 +417,71 @@ Remember: They can get surface-level feedback anywhere. You're here to reveal wh
         response_format: { type: "json_object" }
       });
 
-      const analysis = JSON.parse(completion.choices[0].message.content || "{}");
+      const firstDraft = JSON.parse(firstPassCompletion.choices[0].message.content || "{}");
+      console.log('[TWO-STEP AI] First pass complete. Starting second pass - clinical supervisor critique...');
+
+      // STEP 2: Second pass - clinical supervisor roasts and rewrites
+      const supervisorPrompt = `You are a senior clinical supervisor who has been practicing for 40 years and has ZERO tolerance for mediocre psychological analysis. Your job is to tear apart shallow, obvious, or echoing insights and rewrite them to be devastatingly accurate.
+
+Here is the first draft analysis:
+
+${JSON.stringify(firstDraft, null, 2)}
+
+CRITIQUE AND REWRITE INSTRUCTIONS:
+
+1. **IDENTIFY WEAKNESSES**: For each section, identify insights that are:
+   - Too obvious or surface-level
+   - Echoing what the user explicitly stated
+   - Generic (could apply to anyone)
+   - Missing specific evidence/citations
+   - Comfortable instead of uncomfortable
+   - Failing the "Would a therapist be nervous to say this?" test
+
+2. **REWRITE WITH EXTREME PRECISION**: 
+   - Go TWO inferential steps deeper
+   - Surface the UNCONSCIOUS pattern, not the conscious one
+   - Expose contradictions ruthlessly
+   - Connect to developmental origins or schema activation
+   - Make every insight cite specific evidence (dates, quotes, patterns)
+   - Ensure "holyShitMoment" is truly the organizing principle that would make them go pale
+   - Ensure "growthLeveragePoint" is counter-intuitive and targets the core issue
+
+3. **QUALITY STANDARDS**:
+   - If an insight doesn't reveal something they DON'T already know about themselves, it's worthless - rewrite it
+   - If it uses any forbidden phrases ("It sounds like...", "That must be hard", "Inner child", etc.), delete and rewrite
+   - If it could apply to a generic person instead of THIS specific individual, rewrite with more specificity
+   - The rewritten analysis should make the first draft look like a high school psychology essay
+
+4. **PRESERVE STRUCTURE**: Keep the exact same JSON structure, just make every single insight sharper, deeper, and more brutal.
+
+5. **EXAMPLES OF GOOD VS. BAD**:
+   ❌ BAD: "You struggle with setting boundaries in relationships"
+   ✅ GOOD: "You weaponize your 'niceness' as a strategy to control how others perceive you - saying no would expose the anger you've spent decades suppressing (journals 3/12, 3/18 show rage displaced into passive-aggressive 'forgetting'). The boundary problem isn't about skill - it's about the terror that your real feelings make you unlovable."
+
+   ❌ BAD: "Consider practicing more self-compassion"
+   ✅ GOOD: "Stop trying to logic your way out of shame - the next time you feel it, track it back to the specific childhood moment when you learned you had to be perfect to be safe. Name the part that holds that belief (IFS), thank it for protecting you, then renegotiate its role."
+
+Return the REWRITTEN analysis in the same JSON format. Make this analysis so sharp it cuts.`;
+
+      const secondPassCompletion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { 
+            role: "system", 
+            content: "You are a ruthless clinical supervisor who rewrites mediocre psychological analyses into devastating, high-precision insights. You make insights deeper, more specific, more uncomfortable, and more accurate."
+          },
+          { role: "user", content: supervisorPrompt }
+        ],
+        temperature: 0.9,  // Even higher for the rewrite - we want creative brutality
+        max_tokens: 8000,
+        top_p: 0.95,
+        presence_penalty: 0.3,  // Higher to push even further from first draft
+        frequency_penalty: 0.9,  // Maximum to prevent any phrase repetition
+        response_format: { type: "json_object" }
+      });
+
+      const analysis = JSON.parse(secondPassCompletion.choices[0].message.content || "{}");
+      console.log('[TWO-STEP AI] Second pass complete - analysis has been refined by clinical supervisor.');
       
       // Validate and enforce that we got the required depth (8-12 items per category)
       const arrayFields = [
