@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Users } from "lucide-react";
-import heroImage from "@assets/generated_images/Hero_background_journaling_scene_8ba6e1a3.png";
+import heroImage from "@assets/generated_images/Hero-Background-image.png";
 
 export function HeroSection() {
   return (
