@@ -36,6 +36,7 @@ function Router() {
         <Route path="/journal" component={Journal} />
         <Route path="/insights" component={Insights} />
         <Route path="/reflection" component={PersonalityReflection} />
+        <Route path="/personality" component={PersonalityReflection} />
         <Route path="/assessment" component={IntakeAssessment} />
         <Route path="/profile" component={Profile} />
         <Route component={NotFound} />

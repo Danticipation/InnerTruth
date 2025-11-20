@@ -200,7 +200,7 @@ Use these established facts to provide deeper, more personalized insights. Refer
       const allEntries = await storage.getJournalEntriesByUserId(userId);
       const conversations = await storage.getConversationsByUserId(userId);
       
-      if (allEntries.length >= 2) {
+      if (allEntries.length >= 1) {  // Generate insights even with just one entry for faster feedback
         const entriesText = allEntries.slice(0, 10).map(e => 
           `[${new Date(e.createdAt).toLocaleDateString()}] ${e.content}`
         ).join("\n\n---\n\n");
