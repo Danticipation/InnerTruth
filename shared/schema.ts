@@ -63,6 +63,7 @@ export const memoryFacts = pgTable("memory_facts", {
   userId: varchar("user_id").notNull(),
   factContent: text("fact_content").notNull(),
   category: text("category").notNull(),
+  abstractionLevel: text("abstraction_level").notNull().default('raw_fact'), // raw_fact, inferred_belief, defense_mechanism, ifs_part
   confidence: integer("confidence").notNull().default(50),
   timeContext: text("time_context"),
   emotionalTone: text("emotional_tone"),

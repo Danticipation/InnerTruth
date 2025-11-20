@@ -201,15 +201,34 @@ export class ComprehensiveAnalytics {
       .map(m => `${m.mood} (${m.intensity}/10)${m.note ? ` - ${m.note}` : ''}`)
       .join("\n");
 
-    // Group facts by category
-    const factsByCategory = facts.reduce((acc, fact) => {
-      if (!acc[fact.category]) acc[fact.category] = [];
-      acc[fact.category].push(`• ${fact.factContent} (confidence: ${fact.confidence}%)`);
-      return acc;
-    }, {} as Record<string, string[]>);
+    // Group facts by abstraction level for richer analytical context
+    const factsByAbstraction: Record<string, any[]> = {
+      raw_fact: [],
+      inferred_belief: [],
+      defense_mechanism: [],
+      ifs_part: []
+    };
 
-    const factsText = Object.entries(factsByCategory)
-      .map(([category, items]) => `${category.toUpperCase()}:\n${items.join("\n")}`)
+    facts.forEach(fact => {
+      const level = fact.abstractionLevel || 'raw_fact';
+      if (!factsByAbstraction[level]) factsByAbstraction[level] = [];
+      factsByAbstraction[level].push(fact);
+    });
+
+    const factsText = Object.entries(factsByAbstraction)
+      .filter(([_, items]) => items.length > 0)
+      .map(([level, items]) => {
+        const label = level === 'raw_fact' ? 'OBSERVABLE FACTS' :
+                      level === 'inferred_belief' ? 'INFERRED BELIEFS' :
+                      level === 'defense_mechanism' ? 'DEFENSE MECHANISMS' :
+                      'IFS PARTS';
+        
+        const factList = items
+          .map(f => `• ${f.factContent} (${f.category}, confidence: ${f.confidence}%)`)
+          .join("\n");
+        
+        return `**${label}:**\n${factList}`;
+      })
       .join("\n\n");
 
     // System message defining role and analytical frameworks

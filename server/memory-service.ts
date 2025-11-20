@@ -10,6 +10,7 @@ const openai = new OpenAI({
 interface ExtractedFact {
   fact: string;
   category: string;
+  abstractionLevel: 'raw_fact' | 'inferred_belief' | 'defense_mechanism' | 'ifs_part';
   confidence: number;
   timeContext?: string;
   emotionalTone?: string;
@@ -45,43 +46,71 @@ export class MemoryService {
         messages: [
           {
             role: "system",
-            content: `You are a memory extraction AI. Extract factual information about the user from their ${sourceType}.
+            content: `You are a multi-level memory extraction AI with expertise in clinical psychology. Extract information about the user at FOUR abstraction levels from their ${sourceType}.
 
-Extract facts in these categories:
+**ABSTRACTION LEVELS:**
+
+1. **raw_fact** - Observable, concrete facts they explicitly stated
+   Examples:
+   - "Lives in Seattle"
+   - "Works as a software engineer"
+   - "Has a sister named Sarah"
+
+2. **inferred_belief** - Implicit beliefs inferred from their statements/behaviors
+   Examples:
+   - "Believes love must be earned through perfection" (inferred from pattern of overachieving before asking for help)
+   - "Assumes conflict = rejection" (inferred from avoidance of disagreements)
+   - "Feels fundamentally unworthy" (inferred from self-sabotage pattern before success)
+
+3. **defense_mechanism** - Psychological defenses they employ
+   Examples:
+   - "Uses intellectualization when discussing emotional trauma" (shifts to abstract analysis)
+   - "Employs projection - accuses others of being 'too sensitive' when own emotions are triggered"
+   - "Rationalization defense - justifies people-pleasing as 'just being considerate'"
+
+4. **ifs_part** - Internal Family Systems "parts" identifiable in their psyche
+   Examples:
+   - "The Perfectionist Manager part - demands flawless performance to prevent abandonment"
+   - "The Wounded 8-year-old exile - holds shame from childhood criticism"
+   - "The Intellectual Firefighter - uses analysis to extinguish emotional overwhelm"
+
+**CATEGORIES** (same for all levels):
 - personal_info: Demographics, background, life situation
 - relationships: Family, friends, social connections
 - work_career: Job, career, professional life
 - goals_aspirations: What they want to achieve
 - challenges_struggles: Problems they're facing
 - patterns_behaviors: Recurring behaviors or habits
-- values_beliefs: What matters to them
-- emotions_wellbeing: Emotional state, mental health
+- values_beliefs: What matters to them, core beliefs
+- emotions_wellbeing: Emotional state, mental health, defenses
 
-For each fact, determine:
-1. The fact itself (specific and concrete)
-2. Category (one of the above)
-3. Confidence (0-100, how certain you are this is accurate)
-4. Time context (if mentioned: past, present, future, specific timeframe)
-5. Emotional tone (positive, negative, neutral, mixed)
+**EXTRACTION RULES:**
+- Extract 8-15 total facts across ALL four abstraction levels
+- Prioritize deeper levels (inferred_belief, defense_mechanism, ifs_part) over surface raw_facts
+- Each fact must be SPECIFIC to this individual - avoid generic psychology
+- For ifs_part: Name the part, describe its strategy, and what it protects
+- For defense_mechanism: Name the mechanism (projection, denial, intellectualization, etc.)
+- For inferred_belief: Connect to behavioral evidence
 
-Return ONLY a JSON array of objects with this structure:
+Return ONLY a JSON array with this structure:
 [{
-  "fact": "string",
-  "category": "string",
-  "confidence": number,
+  "fact": "string (the extracted fact/belief/defense/part)",
+  "category": "string (one of the categories above)",
+  "abstractionLevel": "raw_fact" | "inferred_belief" | "defense_mechanism" | "ifs_part",
+  "confidence": number (0-100),
   "timeContext": "string or null",
   "emotionalTone": "string"
 }]
 
-Extract 1-5 of the most significant facts. Don't extract vague or trivial information.`
+Prioritize quality over quantity. Go deep.`
           },
           {
             role: "user",
             content: text
           }
         ],
-        temperature: 0.3,
-        max_tokens: 1000,
+        temperature: 0.5,  // Slightly higher for inferential depth
+        max_tokens: 2000,  // More tokens for multi-level extraction
       });
 
       const response = completion.choices[0].message.content || "[]";
@@ -123,6 +152,7 @@ Extract 1-5 of the most significant facts. Don't extract vague or trivial inform
           userId,
           factContent: extractedFact.fact,
           category: extractedFact.category,
+          abstractionLevel: extractedFact.abstractionLevel,
           confidence: extractedFact.confidence,
           timeContext: extractedFact.timeContext || null,
           emotionalTone: extractedFact.emotionalTone || null,
