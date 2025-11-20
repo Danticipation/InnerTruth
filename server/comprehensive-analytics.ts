@@ -303,104 +303,58 @@ ${factsText}
 === STATISTICS ===
 ${JSON.stringify(statistics, null, 2)}
 
-Provide a comprehensive JSON analysis with this structure:
+=== ANALYSIS REQUIREMENTS ===
+
+For each section, provide EXACTLY 8-12 specific, evidence-based insights. NOT instructional text, but actual psychological insights.
+
+**behavioralPatterns** (8-12 items): Format as [TRIGGER] → [ACTION] → [CONSEQUENCE]. Focus on OBSERVABLE ACTIONS. Example: "When praised publicly (trigger), minimizes or deflects the compliment within seconds (action), preventing genuine acknowledgment and reinforcing belief that achievements don't matter (consequence) - evident in conversations 3/15, 3/22, journal 3/18"
+
+**emotionalPatterns** (8-12 items): Format as [APPRAISAL] → [EMOTIONAL RESPONSE] → [REGULATION]. Focus on emotion PROCESSING. Example: "Interprets neutral feedback as rejection (appraisal) → shame spiral lasting 2-3 days (response) → isolates and over-prepares before next interaction (regulation) - pattern in journals 3/12, 3/19, 4/02"
+
+**relationshipDynamics** (8-12 items): Use ATTACHMENT THEORY lens. Focus on HOW they connect. Example: "Anxious-preoccupied attachment: texts excessively when friend is slow to respond (protest behavior), then withdraws in shame. Classic activate-deactivate cycle seen in conversations 3/15"
+
+**copingMechanisms** (8-12 items): Map to DEFENSE MECHANISMS. Categorize as adaptive vs maladaptive. Example: "Intellectualization defense - shifts into abstract analysis when emotionally overwhelmed (journals 3/20, 4/01). Adaptive in work, maladaptive in intimate relationships"
+
+**growthAreas** (8-12 items): Specific development areas with evidence. Example: "Difficulty tolerating uncertainty leads to premature decision-making - rushes to closure before gathering sufficient information (3 instances in journals)"
+
+**strengths** (8-12 items): Underutilized or unrecognized strengths with evidence. Example: "Exceptional pattern recognition allows early detection of relationship shifts (conversation 3/15), but this strength is dismissed as 'overthinking'"
+
+**blindSpots** (8-12 items): Self-perception gaps. Example: "Claims to value independence yet makes all major decisions based on others' approval (journal 3/18: 'I chose X because everyone expected it'). The dependency is invisible, framed as 'being considerate'"
+
+**valuesAndBeliefs** (8-12 items): Implicit vs explicit values. Example: "Says authenticity is paramount but systematically performs 'palatable' version of self in new relationships (2-3 day delay before revealing genuine reactions). Real value: acceptance > authenticity"
+
+**therapeuticInsights** (8-12 items): Profound 'holy shit' revelations. Example: "Perfectionism isn't about achievement - it's a hypervigilant strategy to prevent abandonment. When 'flawed', believes they're unlovable (defectiveness schema). Evidence: sabotages relationships at first sign of intimacy (journals 3/12, 3/25, 4/03)"
+
+**holyShitMoment** (single string): THE organizing principle connecting all patterns. Make it brutal and undeniable. Example: "Your entire relational strategy is built on the belief that the real you is fundamentally unacceptable - so you've become a master at performing palatability while your authentic self suffocates in isolation"
+
+**growthLeveragePoint** (single string): ONE counter-intuitive action targeting the core pattern. NOT generic advice. Example: "Next time you feel the urge to people-please, deliberately disappoint someone in a small way and observe that the catastrophe you fear doesn't happen (exposure therapy for abandonment schema)"
+
+Return valid JSON matching this exact structure (populate ALL arrays with 8-12 actual insights, NOT placeholder text):
 
 {
-  "summary": "A 3-4 paragraph narrative summary that synthesizes their entire personality, like a therapist's comprehensive case formulation. Include their core struggles, patterns, growth trajectory, and essential nature.",
-  
+  "summary": "Multi-paragraph narrative synthesizing their entire personality",
   "coreTraits": {
     "big5": {
-      "openness": 0-100,
-      "conscientiousness": 0-100,
-      "extraversion": 0-100,
-      "agreeableness": 0-100,
-      "emotionalStability": 0-100
+      "openness": 75,
+      "conscientiousness": 65,
+      "extraversion": 45,
+      "agreeableness": 80,
+      "emotionalStability": 40
     },
-    "archetype": "One concise personality archetype that captures their essence",
-    "dominantTraits": ["3-5 most defining personality characteristics"]
+    "archetype": "The Anxious Achiever",
+    "dominantTraits": ["perfectionism", "people-pleasing", "high conscientiousness"]
   },
-  
-  "behavioralPatterns": [
-    "EXACTLY 8-12 ITEMS - Format: [TRIGGER] → [ACTION] → [CONSEQUENCE]",
-    "Focus on OBSERVABLE ACTIONS, not thoughts or feelings",
-    "Examples: 'When criticized (trigger), immediately deflects blame onto external factors (action), which prevents learning from feedback (consequence) - evident in 4 conversation exchanges'",
-    "Look for: procrastination cycles, avoidance behaviors, compulsive patterns, decision-making habits",
-    "Cite specific dates/instances from journals or conversation timestamps",
-    "Reveal the FUNCTION each behavior serves (what psychological need it meets)"
-  ],
-  
-  "emotionalPatterns": [
-    "EXACTLY 8-12 ITEMS - Format: [APPRAISAL] → [EMOTIONAL RESPONSE] → [REGULATION ATTEMPT]",
-    "Focus on emotion PROCESSING, not the emotions themselves",
-    "Examples: 'Interprets neutral feedback as rejection (appraisal) → shame spiral (response) → isolates for 2-3 days (regulation) - pattern appears in journals 3/12, 3/19, 4/02'",
-    "Look for: emotional triggers, intensity patterns, duration, recovery strategies, alexithymia signs",
-    "Map to emotion regulation theory: rumination, suppression, reappraisal, distraction",
-    "Identify which emotions they AVOID vs. which they over-identify with"
-  ],
-  
-  "relationshipDynamics": [
-    "EXACTLY 8-12 ITEMS - Lens: ATTACHMENT THEORY + INTERPERSONAL PATTERNS",
-    "Focus on HOW they connect, not who they connect with",
-    "Examples: 'Anxious-preoccupied attachment evident in protest behaviors after perceived distance - texts excessively when friend is slow to respond (conversations 3/15), then withdraws in shame. Classic activate-deactivate cycle'",
-    "Look for: boundary patterns, conflict resolution style, intimacy tolerance, dependency vs. autonomy balance",
-    "Identify attachment wounds showing up in current relationships",
-    "Map to specific attachment behaviors: proximity seeking, safe haven, secure base, separation distress"
-  ],
-  
-  "copingMechanisms": [
-    "EXACTLY 8-12 ITEMS - Map to DEFENSE MECHANISMS + REGULATION STRATEGIES",
-    "Focus on STRESS RESPONSE PATTERNS, categorize as adaptive vs. maladaptive",
-    "Examples: 'Intellectualization defense - when emotionally overwhelmed, shifts into abstract analysis mode (journals 3/20, 4/01). Adaptive in work contexts, maladaptive in intimate relationships where emotional presence is needed'",
-    "Look for: Primary defenses (projection, denial, splitting) vs. Mature defenses (humor, sublimation, altruism)",
-    "Identify when they use fight/flight/freeze/fawn responses",
-    "Note which strategies work vs. which create more problems"
-  ],
-  
-  "growthAreas": [
-    "EXACTLY 8-12 ITEMS REQUIRED - THIS IS MANDATORY",
-    "Specific areas for development with actionable, personalized insights",
-    "What's blocking their growth - be specific and evidence-based",
-    "Each growth area should feel like it was written just for them"
-  ],
-  
-  "strengths": [
-    "EXACTLY 8-12 ITEMS REQUIRED",
-    "Underutilized or unrecognized strengths with specific evidence",
-    "Natural talents and capabilities they might not fully appreciate",
-    "Each strength should be backed by examples from their data"
-  ],
-  
-  "blindSpots": [
-    "EXACTLY 8-12 ITEMS - Focus on SELF-PERCEPTION GAPS",
-    "What they literally cannot see about themselves - contradictions between stated vs. lived reality",
-    "Examples: 'Claims to value independence yet makes all major decisions based on others' approval (journal 3/18: 'I chose X because everyone expected it'). The dependency is invisible to them because it's framed as 'being considerate''",
-    "Look for: projection, rationalization, cognitive dissonance they've normalized",
-    "Identify where their self-narrative doesn't match the behavioral evidence",
-    "Surface the beliefs they THINK they have vs. the beliefs that actually drive behavior"
-  ],
-  
-  "valuesAndBeliefs": [
-    "EXACTLY 8-12 ITEMS - Focus on IMPLICIT vs. EXPLICIT VALUES",
-    "Not what they SAY they value - what they ACTUALLY prioritize based on choices/time/energy",
-    "Examples: 'Says authenticity is paramount but systematically performs a 'palatable' version of self in new relationships (conversations show humor editing, opinion softening). Real value = acceptance > authenticity'",
-    "Look for: core beliefs about self/others/world (CBT schema), worldview assumptions, meaning-making patterns",
-    "Map stated values vs. revealed values through behavioral choices",
-    "Identify limiting beliefs masquerading as truths"
-  ],
-  
-  "therapeuticInsights": [
-    "EXACTLY 8-12 ITEMS - THE 'HOLY SHIT' REVELATIONS",
-    "This is where you synthesize EVERYTHING into profound insights they've never consciously recognized",
-    "Examples: 'Your perfectionism isn't about achievement - it's a hypervigilant strategy to prevent abandonment. When you're 'flawed', you believe you're unlovable (schema: defectiveness). Evidence: you sabotage relationships at the first sign of intimacy (when they could see the real you) - pattern in journals 3/12, 3/25, 4/03. The achievement is just emotional armor.'",
-    "Look for: Developmental origins of current patterns, schema activation chains, parts/modes conflicts (IFS), core fears driving surface behaviors",
-    "Connect the dots between childhood experiences (if mentioned), attachment wounds, and current relational patterns",
-    "Identify the 'organizing principle' - the core belief/fear that generates multiple symptoms",
-    "Reveal the FUNCTION of their struggles - what psychological need is being met by the problem?"
-  ],
-  
-  "holyShitMoment": "THE SINGLE MOST BRUTAL, HIGH-PRECISION TRUTH they have never said out loud but will feel viscerally in their gut. This should be THE organizing principle that connects all their patterns. Make it uncomfortable. Make it undeniable. This is the insight that would make a therapist pause before speaking it. Examples: 'Your entire relational strategy is built on the belief that the real you is fundamentally unacceptable - so you've become a master at performing palatability while your authentic self suffocates in isolation.' or 'You don't fear failure - you fear success, because success means visibility, and visibility means eventual exposure of the fraud you believe yourself to be (imposter syndrome masking deeper defectiveness schema).'",
-  
-  "growthLeveragePoint": "The ONE counter-intuitive action that would actually move the needle on their core pattern. NOT generic advice like 'journal more' or 'practice self-compassion'. This should be specific, unexpected, and directly target their organizing principle. Examples: 'Stop trying to 'fix' your anxiety through logic - instead, thank the anxious part for trying to protect you, ask what it's afraid of, and negotiate a new role for it (IFS parts work)' or 'The next time you feel the urge to people-please, deliberately disappoint someone in a small way and observe that the catastrophe you fear doesn't happen (exposure therapy for abandonment schema).'"
+  "behavioralPatterns": [],
+  "emotionalPatterns": [],
+  "relationshipDynamics": [],
+  "copingMechanisms": [],
+  "growthAreas": [],
+  "strengths": [],
+  "blindSpots": [],
+  "valuesAndBeliefs": [],
+  "therapeuticInsights": [],
+  "holyShitMoment": "The brutal organizing principle that connects everything",
+  "growthLeveragePoint": "The ONE counter-intuitive action that targets the core pattern"
 }
 
 FINAL CRITICAL REQUIREMENTS:
@@ -437,7 +391,13 @@ Remember: They can get surface-level feedback anywhere. You're here to reveal wh
       });
 
       const firstDraft = JSON.parse(firstPassCompletion.choices[0].message.content || "{}");
-      console.log('[TWO-STEP AI] First pass complete. Starting second pass - clinical supervisor critique...');
+      console.log('[TWO-STEP AI] First pass complete. First draft preview:', {
+        behavioralPatterns: (firstDraft.behavioralPatterns || []).length,
+        emotionalPatterns: (firstDraft.emotionalPatterns || []).length,
+        relationshipDynamics: (firstDraft.relationshipDynamics || []).length,
+        hasHolyShitMoment: !!firstDraft.holyShitMoment
+      });
+      console.log('[TWO-STEP AI] Starting second pass - clinical supervisor critique...');
 
       // STEP 2: Second pass - clinical supervisor roasts and rewrites
       const supervisorPrompt = `You are a senior clinical supervisor who has been practicing for 40 years and has ZERO tolerance for mediocre psychological analysis. Your job is to tear apart shallow, obvious, or echoing insights and rewrite them to be devastatingly accurate.
@@ -500,6 +460,19 @@ Return the REWRITTEN analysis in the same JSON format. Make this analysis so sha
       });
 
       const analysis = JSON.parse(secondPassCompletion.choices[0].message.content || "{}");
+      console.log('[TWO-STEP AI] Second pass complete. Final analysis preview:', {
+        behavioralPatterns: (analysis.behavioralPatterns || []).length,
+        emotionalPatterns: (analysis.emotionalPatterns || []).length,
+        relationshipDynamics: (analysis.relationshipDynamics || []).length,
+        copingMechanisms: (analysis.copingMechanisms || []).length,
+        growthAreas: (analysis.growthAreas || []).length,
+        strengths: (analysis.strengths || []).length,
+        blindSpots: (analysis.blindSpots || []).length,
+        valuesAndBeliefs: (analysis.valuesAndBeliefs || []).length,
+        therapeuticInsights: (analysis.therapeuticInsights || []).length,
+        hasHolyShitMoment: !!analysis.holyShitMoment,
+        hasGrowthLeveragePoint: !!analysis.growthLeveragePoint
+      });
       console.log('[TWO-STEP AI] Second pass complete - analysis has been refined by clinical supervisor.');
       
       // Validate and enforce that we got the required depth (8-12 items per category)
