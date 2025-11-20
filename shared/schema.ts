@@ -113,6 +113,8 @@ export const personalityReflections = pgTable("personality_reflections", {
   blindSpots: text("blind_spots").array().notNull(),
   valuesAndBeliefs: text("values_and_beliefs").array().notNull(),
   therapeuticInsights: text("therapeutic_insights").array().notNull(),
+  holyShitMoment: text("holy_shit_moment"),
+  growthLeveragePoint: text("growth_leverage_point"),
   statistics: jsonb("statistics"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Brain, TrendingUp, Eye, Heart, Target, Lightbulb, Shield, Sparkles, RefreshCw, Loader2, Users, Zap, CheckCircle2, Volume2, VolumeX } from "lucide-react";
+import { Brain, TrendingUp, Eye, Heart, Target, Lightbulb, Shield, Sparkles, RefreshCw, Loader2, Users, Zap, CheckCircle2, Volume2, VolumeX, AlertTriangle, Rocket } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,8 @@ type PersonalityReflection = {
   blindSpots: string[];
   valuesAndBeliefs: string[];
   therapeuticInsights: string[];
+  holyShitMoment?: string | null;
+  growthLeveragePoint?: string | null;
   statistics: {
     totalConversations: number;
     totalJournalEntries: number;
@@ -743,6 +745,82 @@ ${reflection.summary}
             </ul>
           </CardContent>
         </Card>
+
+        {/* Holy Shit Moment - THE core revelation */}
+        {reflection.holyShitMoment && (
+          <Card className="border-2 border-red-500/30 bg-red-500/5">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                    The Core Truth
+                  </CardTitle>
+                  <CardDescription>The organizing principle behind your patterns</CardDescription>
+                </div>
+                <Button
+                  size="icon"
+                  variant={playingSection === 'holyshit' ? "default" : "ghost"}
+                  onClick={() => handlePlaySection('holyshit', `The Core Truth:\n${reflection.holyShitMoment}`)}
+                  data-testid="button-play-holyshit"
+                  title={playingSection === 'holyshit' ? "Stop reading" : "Read aloud"}
+                >
+                  {playingSection === 'holyshit' && isSpeaking ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="p-6 rounded-md bg-red-500/10 border border-red-500/30">
+                <p className="text-base leading-relaxed font-medium">{reflection.holyShitMoment}</p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3 italic">
+                This insight connects the underlying patterns across all your behavioral, emotional, and relational dynamics.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Growth Leverage Point - THE actionable intervention */}
+        {reflection.growthLeveragePoint && (
+          <Card className="border-2 border-green-500/30 bg-green-500/5">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Rocket className="h-5 w-5 text-green-500" />
+                    Your Growth Leverage Point
+                  </CardTitle>
+                  <CardDescription>The counter-intuitive action that will move the needle</CardDescription>
+                </div>
+                <Button
+                  size="icon"
+                  variant={playingSection === 'leverage' ? "default" : "ghost"}
+                  onClick={() => handlePlaySection('leverage', `Your Growth Leverage Point:\n${reflection.growthLeveragePoint}`)}
+                  data-testid="button-play-leverage"
+                  title={playingSection === 'leverage' ? "Stop reading" : "Read aloud"}
+                >
+                  {playingSection === 'leverage' && isSpeaking ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="p-6 rounded-md bg-green-500/10 border border-green-500/30">
+                <p className="text-base leading-relaxed font-medium">{reflection.growthLeveragePoint}</p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3 italic">
+                This action directly targets your core pattern - not generic advice, but a specific intervention tailored to you.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Data Sources */}
         <Card className="bg-secondary/30">
