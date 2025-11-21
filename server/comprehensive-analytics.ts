@@ -377,7 +377,7 @@ Remember: They can get surface-level feedback anywhere. You're here to reveal wh
 
     try {
       // STEP 1: First pass - generate initial analysis
-      console.log('[TWO-STEP AI] Starting first pass - initial analysis generation...');
+      console.log('[SINGLE-PASS AI] Generating comprehensive analysis...');
       const firstPassCompletion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -392,71 +392,8 @@ Remember: They can get surface-level feedback anywhere. You're here to reveal wh
         response_format: { type: "json_object" }
       });
 
-      const firstDraft = JSON.parse(firstPassCompletion.choices[0].message.content || "{}");
-      console.log('[TWO-STEP AI] First pass complete. First draft preview:', {
-        behavioralPatterns: (firstDraft.behavioralPatterns || []).length,
-        emotionalPatterns: (firstDraft.emotionalPatterns || []).length,
-        relationshipDynamics: (firstDraft.relationshipDynamics || []).length,
-        hasHolyShitMoment: !!firstDraft.holyShitMoment
-      });
-      console.log('[TWO-STEP AI] Starting second pass - clinical supervisor critique...');
-
-      // STEP 2: Second pass - clinical supervisor roasts and rewrites
-      const supervisorPrompt = `You are a senior clinical supervisor reviewing a psychological analysis. Your job is to EXPAND and DEEPEN every section, NOT delete items.
-
-Here is the first draft analysis:
-
-${JSON.stringify(firstDraft, null, 2)}
-
-CRITICAL INSTRUCTION: You must return AT LEAST 8 items in EVERY array section. If the first draft has fewer than 8 items in any section, GENERATE ADDITIONAL INSIGHTS to reach the minimum.
-
-REWRITE AND EXPANSION INSTRUCTIONS:
-
-1. **FOR EACH EXISTING INSIGHT**: Make it deeper, more specific, and more uncomfortable:
-   - Add specific evidence citations (dates, quotes)
-   - Go two inferential steps deeper
-   - Connect to psychological frameworks (schemas, IFS parts, attachment patterns)
-   - Remove any therapeutic clichés
-   
-2. **GENERATE ADDITIONAL INSIGHTS** until each section has 8-12 items:
-   - Look for patterns the first draft missed
-   - Add insights about contradictions between stated vs. actual behavior
-   - Surface blind spots and self-perception gaps
-   - Identify defense mechanisms and coping strategies
-   - Connect patterns across different data sources
-
-3. **QUALITY STANDARDS FOR REWRITTEN INSIGHTS**:
-   - Make them deeper, more specific, more uncomfortable
-   - Add specific evidence citations (dates, quotes, behavioral examples)
-   - Go two inferential steps beyond surface observations
-   - Remove any therapeutic clichés or forbidden phrases
-   - Ensure each insight passes the "Would a therapist be nervous to say this?" test
-
-4. **EXAMPLES OF IMPROVEMENT**:
-   ❌ SHALLOW: "You struggle with setting boundaries"
-   ✅ DEEP: "You weaponize 'niceness' as control - saying no would expose decades of suppressed anger (journals 3/12, 3/18 show rage displaced into passive-aggressive 'forgetting'). The boundary issue isn't about skill - it's terror that your real feelings make you unlovable."
-
-CRITICAL: Return JSON with the SAME STRUCTURE but with 8-12 items in EVERY array. If the first draft is missing items, GENERATE THEM. Do NOT delete insights - only improve and expand them.`;
-
-      const secondPassCompletion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { 
-            role: "system", 
-            content: "You are a ruthless clinical supervisor who rewrites mediocre psychological analyses into devastating, high-precision insights. You make insights deeper, more specific, more uncomfortable, and more accurate."
-          },
-          { role: "user", content: supervisorPrompt }
-        ],
-        temperature: 0.9,  // Even higher for the rewrite - we want creative brutality
-        max_tokens: 8000,
-        top_p: 0.95,
-        presence_penalty: 0.3,  // Higher to push even further from first draft
-        frequency_penalty: 0.9,  // Maximum to prevent any phrase repetition
-        response_format: { type: "json_object" }
-      });
-
-      const analysis = JSON.parse(secondPassCompletion.choices[0].message.content || "{}");
-      console.log('[TWO-STEP AI] Second pass complete. Final analysis preview:', {
+      const analysis = JSON.parse(firstPassCompletion.choices[0].message.content || "{}");
+      console.log('[SINGLE-PASS AI] Analysis complete. Preview:', {
         behavioralPatterns: (analysis.behavioralPatterns || []).length,
         emotionalPatterns: (analysis.emotionalPatterns || []).length,
         relationshipDynamics: (analysis.relationshipDynamics || []).length,
@@ -469,7 +406,7 @@ CRITICAL: Return JSON with the SAME STRUCTURE but with 8-12 items in EVERY array
         hasHolyShitMoment: !!analysis.holyShitMoment,
         hasGrowthLeveragePoint: !!analysis.growthLeveragePoint
       });
-      console.log('[TWO-STEP AI] Second pass complete - analysis has been refined by clinical supervisor.');
+      console.log('[SINGLE-PASS AI] Analysis generation complete.');
       
       // Validate and enforce that we got the required depth (8-12 items per category)
       const arrayFields = [
