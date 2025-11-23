@@ -385,7 +385,7 @@ Remember: They can get surface-level feedback anywhere. You're here to reveal wh
           { role: "user", content: userPrompt }
         ],
         temperature: 0.8,  // Higher for creative, non-templated insights
-        max_tokens: 8000,  // Comprehensive output with deep detail
+        max_tokens: 16000,  // INCREASED: Need room for 9 sections × 8-12 items each
         top_p: 0.95,  // Nucleus sampling for diverse vocabulary
         presence_penalty: 0.2,  // Discourage repetitive topics/patterns
         frequency_penalty: 0.8,  // Strongly discourage repetitive phrases/structures
