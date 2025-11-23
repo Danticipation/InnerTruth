@@ -578,7 +578,7 @@ Every single insight must make them think "how did you know that?" - not "I alre
       response_format: { type: "json_object" }
     });
 
-    const firstPassResult = JSON.parse(firstPassResponse.choices[0].message.content || "{}");
+    const firstPassResult = this.parseAIResponse(firstPassResponse.choices[0].message.content || "{}");
     const firstPassInsights = firstPassResult.insights || [];
     
     // STEP 2: Second pass - senior supervisor critique and rewrite (THE NUCLEAR OPTION)
@@ -635,7 +635,7 @@ This is the final quality gate. Be ruthless. Every insight must be devastating, 
       response_format: { type: "json_object" }
     });
 
-    const result = JSON.parse(secondPassResponse.choices[0].message.content || "{}");
+    const result = this.parseAIResponse(secondPassResponse.choices[0].message.content || "{}");
     const insights = result.insights || [];
     
     // QUALITY CONTROL: Remove duplicates within this section using Jaccard similarity
@@ -707,7 +707,19 @@ Return JSON:
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(response.choices[0].message.content || "{}");
+    return this.parseAIResponse(response.choices[0].message.content || "{}");
+  }
+
+  // Helper: Robust JSON parsing that strips markdown code blocks
+  private parseAIResponse(content: string): any {
+    let cleaned = content.trim();
+    
+    // Strip markdown code blocks if present (GPT-4o sometimes wraps JSON in ```json ... ```)
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+    }
+    
+    return JSON.parse(cleaned);
   }
 
   private async analyzeWithAI_LEGACY(

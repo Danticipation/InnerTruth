@@ -119,7 +119,15 @@ Prioritize quality over quantity. Go deep.`
         frequency_penalty: 0.8
       });
 
-      const response = completion.choices[0].message.content || "[]";
+      let response = completion.choices[0].message.content || "[]";
+      
+      // Strip markdown code blocks if present (GPT-4o sometimes wraps JSON in ```json ... ```)
+      response = response.trim();
+      if (response.startsWith('```')) {
+        // Remove opening ```json or ``` and closing ```
+        response = response.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+      }
+      
       const facts = JSON.parse(response);
       
       return Array.isArray(facts) ? facts : [];
