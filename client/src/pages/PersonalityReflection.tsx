@@ -12,9 +12,12 @@ import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useToast } from "@/hooks/use-toast";
 import { stripMarkdownForSpeech } from "@/lib/utils";
 
+type AnalysisTier = 'free' | 'standard' | 'premium';
+
 type PersonalityReflection = {
   id: string;
   userId: string;
+  tier: AnalysisTier;
   summary: string;
   coreTraits: {
     big5: {
@@ -51,6 +54,27 @@ type PersonalityReflection = {
   };
   createdAt: Date;
 };
+
+const TIER_CONFIG = {
+  free: {
+    name: 'Starter Insights',
+    price: '$0',
+    sections: ['behavioralPatterns', 'growthAreas'],
+    color: 'gray'
+  },
+  standard: {
+    name: 'Deep Dive',
+    price: '$9',
+    sections: ['behavioralPatterns', 'emotionalPatterns', 'relationshipDynamics', 'growthAreas', 'strengths', 'blindSpots'],
+    color: 'blue'
+  },
+  premium: {
+    name: 'Devastating Truth',
+    price: '$29',
+    sections: ['behavioralPatterns', 'emotionalPatterns', 'relationshipDynamics', 'copingMechanisms', 'growthAreas', 'strengths', 'blindSpots', 'valuesAndBeliefs', 'therapeuticInsights'],
+    color: 'primary'
+  }
+} as const;
 
 const Big5TraitBar = ({ label, value }: { label: string; value: number }) => {
   const getColor = (val: number) => {
@@ -95,6 +119,7 @@ const StatCard = ({ icon: Icon, label, value, description }: { icon: any; label:
 
 export default function PersonalityReflection() {
   const [playingSection, setPlayingSection] = useState<string | null>(null);
+  const [selectedTier, setSelectedTier] = useState<AnalysisTier>('free');
   const { toast } = useToast();
 
   const { data: reflection, isLoading, error } = useQuery<PersonalityReflection>({
@@ -120,7 +145,7 @@ export default function PersonalityReflection() {
 
   const generateMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("POST", "/api/personality-reflection");
+      return await apiRequest("POST", "/api/personality-reflection", { tier: selectedTier });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/personality-reflection"] });
@@ -236,27 +261,93 @@ ${reflection.summary}
     return (
       <div className="min-h-screen bg-background">
         <DashboardNav />
-        <main className="max-w-5xl mx-auto px-6 py-8">
-          <Card className="border-2 border-dashed">
-            <CardContent className="py-16">
-              <div className="text-center space-y-4">
-                <Brain className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold">Generate Your Comprehensive Personality Reflection</h2>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Get an incredibly detailed, therapeutic-grade analysis of your personality, patterns, and growth opportunities. This analysis synthesizes all your conversations, journal entries, mood data, and extracted memories.
-                </p>
-                <Button 
-                  onClick={() => generateMutation.mutate()}
-                  size="lg"
-                  className="mt-6"
-                  data-testid="button-generate-reflection"
+        <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+          <div className="text-center space-y-4">
+            <Brain className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-2xl font-bold">Generate Your Comprehensive Personality Reflection</h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Choose your analysis depth. Each tier uses professional psychological frameworks to reveal deeper insights about your personality.
+            </p>
+          </div>
+
+          {/* Tier Selection Cards */}
+          <div className="grid md:grid-cols-3 gap-6">
+            {(['free', 'standard', 'premium'] as const).map((tier) => {
+              const config = TIER_CONFIG[tier];
+              const isSelected = selectedTier === tier;
+              
+              return (
+                <Card 
+                  key={tier}
+                  className={`relative cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary' : ''}`}
+                  onClick={() => setSelectedTier(tier)}
+                  data-testid={`card-tier-${tier}`}
                 >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Comprehensive Analysis
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                  {isSelected && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <Badge variant="default" className="bg-primary" data-testid={`badge-selected-${tier}`}>
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Selected
+                      </Badge>
+                    </div>
+                  )}
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span data-testid={`text-tier-name-${tier}`}>{config.name}</span>
+                      <Badge variant={tier === 'free' ? 'secondary' : 'default'} data-testid={`badge-price-${tier}`}>
+                        {config.price}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription data-testid={`text-tier-sections-${tier}`}>
+                      {config.sections.length} analysis sections
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      {tier === 'free' && (
+                        <>
+                          <p>• Behavioral Patterns</p>
+                          <p>• Growth Areas</p>
+                        </>
+                      )}
+                      {tier === 'standard' && (
+                        <>
+                          <p>• Everything in Free</p>
+                          <p>• Emotional Patterns</p>
+                          <p>• Relationship Dynamics</p>
+                          <p>• Strengths & Blind Spots</p>
+                        </>
+                      )}
+                      {tier === 'premium' && (
+                        <>
+                          <p>• Everything in Standard</p>
+                          <p>• Coping Mechanisms</p>
+                          <p>• Values & Beliefs</p>
+                          <p>• Therapeutic Insights</p>
+                          <p className="font-semibold text-primary">• Holy Shit Moment ✨</p>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <div className="text-center">
+            <Button 
+              onClick={() => generateMutation.mutate()}
+              size="lg"
+              className="mt-6"
+              data-testid="button-generate-reflection"
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              Generate {TIER_CONFIG[selectedTier].name} Analysis
+            </Button>
+            <p className="text-sm text-muted-foreground mt-4">
+              Analyzes all your conversations, journals, moods, and memories using AI
+            </p>
+          </div>
         </main>
       </div>
     );
