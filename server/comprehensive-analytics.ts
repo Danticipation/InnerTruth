@@ -548,6 +548,16 @@ FORBIDDEN PHRASES (Use any of these and your analysis is worthless):
 ❌ "It's okay to feel..."
 ❌ "Give yourself permission to..."
 
+ANTI-WORD-SALAD RULES (If you break these, your output is incoherent jargon):
+❌ NO excessive hyphenation - max 2 hyphenated phrases per insight
+❌ NO run-on sentences - each insight must be 1-3 clear sentences with proper punctuation
+❌ NO jargon stacking - can't use more than 2 technical terms in a row without plain explanation
+❌ NO fake technical terms like "Safety-regulation-like developmental schemas pre-installed defending"
+❌ Each sentence MUST have clear subject-verb-object structure - not word soup
+❌ Use proper punctuation - periods, commas, not endless hyphens connecting random concepts
+
+WRITING STANDARD: Write like a brilliant therapist, not like someone having a stroke. Be precise, concise, devastating - but COHERENT.
+
 QUALITY THRESHOLD:
 Every single insight must make them think "holy shit, how did you know that?" - not "yeah, I already knew that". You're revealing patterns they CANNOT see about themselves. That's the bar.`;
 
@@ -585,16 +595,26 @@ MANDATORY REJECTION CRITERIA - For EACH insight, check:
 - Does it reveal something they DON'T know about themselves? → If not, REJECT
 - Would a therapist be nervous to say this? → If not, it's too soft - REJECT
 - Does it overlap >60% with another insight? → REJECT as duplicate
+- **IS IT WORD SALAD?** → Check for:
+  ❌ Excessive hyphenation (more than 2 per insight) → REJECT and rewrite clearly
+  ❌ Run-on sentences without proper punctuation → REJECT and break into clear sentences
+  ❌ Jargon stacking (more than 2 technical terms in a row) → REJECT and explain in plain terms
+  ❌ Fake hyphenated technical terms like "Safety-regulation-like developmental schemas" → REJECT completely
+  ❌ Unclear subject-verb-object structure → REJECT and rewrite with proper grammar
+  
+  **COHERENCE TEST**: Can you read this aloud without getting confused? If not, it's word salad - REJECT.
 
 CRITICAL: If an insight fails ANY of these tests, you have TWO options:
 1. Replace it with "Insufficient depth — need more data" (if truly unsalvageable)
-2. Rewrite it to be devastatingly accurate with proper evidence and depth
+2. Rewrite it to be devastatingly accurate with proper evidence and depth AND grammatically coherent
 
-You MUST actively reject shallow insights. DO NOT just pass them through unchanged.
+You MUST actively reject shallow insights AND word salad. DO NOT just pass them through unchanged.
 
 Return the REWRITTEN analysis as JSON: {"insights": ["rewritten insight 1 OR 'Insufficient depth — need more data'", ...]}
 
-This is the final quality gate. Be merciless. Every insight must be "holy shit" level or explicitly marked insufficient.`;
+WRITING STANDARD: Every insight must be devastating BUT READABLE. Write like a brilliant therapist, not like AI having a malfunction. Use proper sentences with clear structure.
+
+This is the final quality gate. Be merciless. Every insight must be "holy shit" level AND coherent, or explicitly marked insufficient.`;
 
     const supervisorMessage = `You are a brutally honest senior clinical supervisor. Your standards are impossibly high. You reject anything that isn't "holy shit" level revelation. You prioritize devastating accuracy over comfort.`;
 
