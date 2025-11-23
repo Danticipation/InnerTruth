@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Brain, TrendingUp, Eye, Heart, Target, Lightbulb, Shield, Sparkles, RefreshCw, Loader2, Users, Zap, CheckCircle2, Volume2, VolumeX, AlertTriangle, Rocket } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -420,6 +421,9 @@ ${reflection.summary}
 
   if (!reflection) return null;
 
+  // Check if user has a lower tier and might want to upgrade
+  const canUpgrade = reflection.tier === 'free' || reflection.tier === 'standard';
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardNav />
@@ -440,16 +444,132 @@ ${reflection.summary}
               Generated {new Date(reflection.createdAt).toLocaleDateString()} • Deep AI Analysis
             </p>
           </div>
-          <Button 
-            onClick={() => generateMutation.mutate()}
-            variant="outline"
-            size="sm"
-            className="sm:size-default w-full sm:w-auto"
-            data-testid="button-refresh-reflection"
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Regenerate
-          </Button>
+          <div className="flex gap-2">
+            {canUpgrade && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="default"
+                    size="sm"
+                    className="sm:size-default w-full sm:w-auto"
+                    data-testid="button-upgrade-tier"
+                  >
+                    <TrendingUp className="mr-2 h-4 w-4" />
+                    Upgrade Analysis
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Upgrade Your Personality Analysis</DialogTitle>
+                    <DialogDescription>
+                      Choose a deeper level of analysis to unlock more insights
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="grid md:grid-cols-3 gap-4 mt-4">
+                    {(['free', 'standard', 'premium'] as const).map((tier) => {
+                      const config = TIER_CONFIG[tier];
+                      const isSelected = selectedTier === tier;
+                      const isCurrent = reflection.tier === tier;
+                      
+                      return (
+                        <Card 
+                          key={tier}
+                          className={`relative cursor-pointer transition-all ${
+                            isSelected ? 'ring-2 ring-primary' : ''
+                          } ${isCurrent ? 'opacity-60' : ''}`}
+                          onClick={() => !isCurrent && setSelectedTier(tier)}
+                          data-testid={`card-tier-${tier}`}
+                        >
+                          {isCurrent && (
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                              <Badge variant="secondary" data-testid={`badge-current-${tier}`}>
+                                Current Tier
+                              </Badge>
+                            </div>
+                          )}
+                          {isSelected && !isCurrent && (
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                              <Badge variant="default" className="bg-primary" data-testid={`badge-selected-${tier}`}>
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Selected
+                              </Badge>
+                            </div>
+                          )}
+                          <CardHeader>
+                            <CardTitle className="flex items-center justify-between text-base">
+                              <span data-testid={`text-tier-name-${tier}`}>{config.name}</span>
+                              <Badge variant={tier === 'free' ? 'secondary' : 'default'} data-testid={`badge-price-${tier}`}>
+                                {config.price}
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription data-testid={`text-tier-sections-${tier}`}>
+                              {config.sections.length} analysis sections
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            <div className="text-xs text-muted-foreground space-y-1">
+                              {tier === 'free' && (
+                                <>
+                                  <p>• Behavioral Patterns</p>
+                                  <p>• Growth Areas</p>
+                                </>
+                              )}
+                              {tier === 'standard' && (
+                                <>
+                                  <p>• Everything in Free</p>
+                                  <p>• Emotional Patterns</p>
+                                  <p>• Relationship Dynamics</p>
+                                  <p>• Strengths & Blind Spots</p>
+                                </>
+                              )}
+                              {tier === 'premium' && (
+                                <>
+                                  <p>• Everything in Standard</p>
+                                  <p>• Coping Mechanisms</p>
+                                  <p>• Values & Beliefs</p>
+                                  <p>• Therapeutic Insights</p>
+                                  <p className="font-semibold text-primary">• Holy Shit Moment ✨</p>
+                                </>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="flex justify-end gap-3 mt-6">
+                    <DialogClose asChild>
+                      <Button variant="outline" data-testid="button-cancel-upgrade">
+                        Cancel
+                      </Button>
+                    </DialogClose>
+                    <DialogClose asChild>
+                      <Button 
+                        onClick={() => generateMutation.mutate()}
+                        disabled={selectedTier === reflection.tier}
+                        data-testid="button-confirm-upgrade"
+                      >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate {TIER_CONFIG[selectedTier].name} Analysis
+                      </Button>
+                    </DialogClose>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+            <Button 
+              onClick={() => generateMutation.mutate()}
+              variant="outline"
+              size="sm"
+              className="sm:size-default w-full sm:w-auto"
+              data-testid="button-refresh-reflection"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Regenerate
+            </Button>
+          </div>
         </div>
 
         {/* Statistics Grid */}
