@@ -56,7 +56,7 @@ The design utilizes React, TypeScript, Tailwind CSS, and Shadcn UI for a profess
 The system enforces strict per-user data isolation for all sensitive information. AI analysis prioritizes "holy shit" revelations over surface-level observations by integrating diverse psychological frameworks and employing sophisticated anti-echo and duplicate detection mechanisms. Category tracking provides targeted self-improvement with AI-powered scoring and trend visualization.
 
 ## External Dependencies
-- **AI Service**: OpenAI GPT-4o (via Replit AI Integrations)
+- **AI Service**: OpenAI GPT-4o (direct API via user's OPENAI_API_KEY - bypasses Azure content filtering)
 - **Database**: PostgreSQL (via Neon Serverless)
 - **Text-to-Speech**: Eleven Labs
 - **Authentication**: Replit Auth (OpenID Connect)
@@ -67,6 +67,14 @@ The system enforces strict per-user data isolation for all sensitive information
 - **State Management**: TanStack Query (React Query)
 
 ## Recent Changes
+
+### November 23, 2025 - Direct OpenAI API Integration & Unfiltered Prompts
+- **Switched to direct OpenAI API**: All OpenAI clients (routes.ts, memory-service.ts, comprehensive-analytics.ts, category-scoring.ts) now prioritize user's OPENAI_API_KEY over Replit's Azure-filtered AI_INTEGRATIONS_OPENAI_API_KEY
+- **Removed Azure content filtering**: Bypasses Azure OpenAI's strict content policy that blocked "brutal/devastating/ruthless" language in prompts
+- **Restored original brutal prompts**: Multi-pass system messages reverted from softened "experienced clinical" language back to "unforgiving, world-class personality analyst" with "uncomfortable truths", "ruthless contradiction detection", and "devastating accuracy"
+- **Fixed JSON parsing bugs**: Added robust markdown stripping in memory-service.ts and comprehensive-analytics.ts to handle GPT-4o wrapping JSON in ```json code blocks (prevents SyntaxError during fact extraction)
+- **Trade-off accepted**: User pays directly for OpenAI API usage (~$0.01-0.03 per analysis) in exchange for complete control over prompt content without corporate filtering
+- **Anti-word-salad rules preserved**: Max 2 hyphens per insight, clear sentence structure, no jargon stacking - maintained regardless of API source
 
 ### November 23, 2025 - Multi-Pass Tiered Analysis System with Senior AI Quality Controls
 - Implemented three-tier personality analysis pricing model (Free/$0, Standard/$9, Premium/$29)
