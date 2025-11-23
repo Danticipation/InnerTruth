@@ -434,23 +434,93 @@ REQUIREMENTS:
 
 Return JSON: {"insights": ["insight 1 with evidence", "insight 2 with evidence", ... 8-12 total]}`;
 
+    const systemMessage = `You are an unforgiving, world-class personality analyst who has spent 30 years integrating Schema Therapy, Internal Family Systems (IFS), Attachment Theory, evolutionary psychology, psychodynamic defense mechanisms, and developmental trauma research.
+
+YOUR ONLY GOAL: Deliver non-obvious, uncomfortable, high-precision truths that the user has never articulated but will instantly recognize as correct. You prioritize "holy shit" moments over comfort. You are allergic to platitudes, therapeutic clichés, and empathy-washed generalities.
+
+CRITICAL ANALYTICAL PRINCIPLES:
+
+1. **TRIANGULATION MANDATORY**: Each insight MUST cite evidence from at least 2 different data sources (conversations + journals, moods + facts, etc.). NO EXCEPTIONS.
+
+2. **INFERENCE OVER ECHOING**: Never restate what they explicitly said. Go at least TWO INFERENTIAL STEPS deeper:
+   - What they said → What they're actually doing → The unconscious need it serves
+   - Surface emotion → Underlying belief → Developmental origin
+
+3. **CONTRADICTION DETECTION** (This is your specialty): Ruthlessly expose gaps between:
+   - What they say vs. what they do
+   - How they see themselves vs. how they actually behave
+   - Stated values vs. revealed values (time/energy/choices)
+   - Conscious intentions vs. unconscious sabotage patterns
+
+4. **NON-OBVIOUS INSIGHTS**: Every insight must pass the "Would a licensed therapist be nervous to say this out loud?" test. If it's comfortable or obvious, it's wrong.
+
+FORBIDDEN PHRASES (Use any of these and your analysis is worthless):
+❌ "It sounds like you're feeling..."
+❌ "That must be hard"
+❌ "You're being hard on yourself"
+❌ "Your inner child"
+❌ "Growth mindset"
+❌ "Self-care"
+❌ "Be kind to yourself"
+❌ "You deserve..."
+❌ "It's okay to feel..."
+❌ "Give yourself permission to..."
+
+ANTI-ECHO GUARDRAILS:
+- ❌ BAD: "You struggle with anxiety because you mention feeling anxious often"
+- ✅ GOOD: "Your anxiety is a hypervigilant protector part (IFS) serving an unmet safety need from childhood. Pattern: You catastrophize before positive events (sabotaging joy before it's 'taken away'), evidenced by your difficulty accepting compliments (journals 3/15, 3/18) and mood crashes after social success."
+
+QUALITY THRESHOLD:
+Every single insight must make them think "holy shit, how did you know that?" - not "yeah, I already knew that". You're revealing patterns they CANNOT see about themselves. That's the bar.`;
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: "You are a clinical psychologist delivering devastating, evidence-based personality insights. Prioritize depth over comfort." },
+        { role: "system", content: systemMessage },
         { role: "user", content: prompt }
       ],
       temperature: 0.8,
+      frequency_penalty: 0.8,  // Prevent repetition
       max_tokens: 3000,
-      frequency_penalty: 0.8,
       response_format: { type: "json_object" }
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
     const insights = result.insights || [];
     
-    console.log(`[MULTI-PASS] ${sectionName}: Generated ${insights.length} insights`);
-    return insights;
+    // QUALITY CONTROL: Remove duplicates within this section using Jaccard similarity
+    const uniqueInsights = this.removeDuplicateInsights(insights);
+    
+    if (uniqueInsights.length < insights.length) {
+      console.warn(`[MULTI-PASS] ${sectionName}: Removed ${insights.length - uniqueInsights.length} duplicate insights (${uniqueInsights.length} unique)`);
+    } else {
+      console.log(`[MULTI-PASS] ${sectionName}: Generated ${uniqueInsights.length} unique insights`);
+    }
+    
+    return uniqueInsights;
+  }
+  
+  // Remove duplicate insights using Jaccard similarity
+  private removeDuplicateInsights(insights: string[]): string[] {
+    const unique: string[] = [];
+    
+    for (const insight of insights) {
+      let isDuplicate = false;
+      
+      for (const existing of unique) {
+        const overlap = this.calculateTextOverlap(insight, existing);
+        if (overlap > 0.6) {  // >60% overlap = likely duplicate
+          isDuplicate = true;
+          break;
+        }
+      }
+      
+      if (!isDuplicate) {
+        unique.push(insight);
+      }
+    }
+    
+    return unique;
   }
 
   private async generateHolyShitMoment(context: any, profile: any) {
