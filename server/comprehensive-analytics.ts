@@ -214,7 +214,8 @@ export class ComprehensiveAnalytics {
 
   // Calculate text overlap between two strings (returns 0-1 similarity score)
   private calculateTextOverlap(str1: string, str2: string): number {
-    if (!str1 || !str2) return 0;
+    // Type safety: ensure both inputs are strings
+    if (!str1 || !str2 || typeof str1 !== 'string' || typeof str2 !== 'string') return 0;
     
     // Simple word-based Jaccard similarity
     const words1 = new Set(str1.toLowerCase().split(/\s+/).filter(w => w.length > 3));
@@ -631,6 +632,12 @@ This is the final quality gate. Be merciless. Every insight must be "holy shit" 
     const unique: string[] = [];
     
     for (const insight of insights) {
+      // Type safety: ensure insight is a string
+      if (typeof insight !== 'string' || !insight.trim()) {
+        console.warn('[DEDUP] Skipping non-string or empty insight:', typeof insight, insight);
+        continue;
+      }
+      
       let isDuplicate = false;
       
       for (const existing of unique) {
