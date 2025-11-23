@@ -409,8 +409,8 @@ ${reflection.summary}
                 <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto" />
                 <h2 className="text-2xl font-bold">Analyzing Your Personality...</h2>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  Processing {reflection?.statistics.totalMessages || 0} messages across {reflection?.statistics.totalConversations || 0} conversations, {reflection?.statistics.totalJournalEntries || 0} journal entries, 
-                  and {reflection?.statistics.totalMemoryFacts || 0} extracted facts to create your comprehensive profile.
+                  Using advanced AI to analyze all your conversations, journals, moods, and memories. 
+                  This may take 2-3 minutes to complete a comprehensive psychological analysis.
                 </p>
               </div>
             </CardContent>
