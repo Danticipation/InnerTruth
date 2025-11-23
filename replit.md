@@ -76,6 +76,14 @@ The system enforces strict per-user data isolation for all sensitive information
 - **Trade-off accepted**: User pays directly for OpenAI API usage (~$0.01-0.03 per analysis) in exchange for complete control over prompt content without corporate filtering
 - **Anti-word-salad rules preserved**: Max 2 hyphens per insight, clear sentence structure, no jargon stacking - maintained regardless of API source
 
+### November 23, 2025 - Mood Tracking UI & Message Count Display
+- **Added complete mood tracking interface**: Created Mood page (client/src/pages/Mood.tsx) with MoodInterface component for logging moods with intensity, activities, and notes
+- **Fixed mood intensity slider scale**: Changed from incorrect 1-10 scale to proper 0-100 scale matching database schema (min=0, max=100, step=5)
+- **Enhanced stats display**: Personality reflection stats now show "X total (Y messages)" format for clarity instead of just conversation count
+- **Fixed loading state**: Removed premature "0 messages" display during personality reflection generation, now shows generic "Analyzing..." message
+- **Mood entry persistence**: Fully functional POST /api/mood-entries endpoint creates mood entries with correct user_id isolation
+- **Navigation integration**: Added Mood link to DashboardNav for easy access
+
 ### November 23, 2025 - Multi-Pass Tiered Analysis System with Senior AI Quality Controls
 - Implemented three-tier personality analysis pricing model (Free/$0, Standard/$9, Premium/$29)
 - Replaced single-pass AI generation with multi-pass system (9 separate focused calls per section)

@@ -29,7 +29,7 @@ const COMMON_ACTIVITIES = [
 
 export function MoodInterface() {
   const [selectedMood, setSelectedMood] = useState("");
-  const [intensity, setIntensity] = useState([5]);
+  const [intensity, setIntensity] = useState([50]);
   const [activities, setActivities] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const { toast } = useToast();
@@ -48,7 +48,7 @@ export function MoodInterface() {
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/personality-reflection"] });
       setSelectedMood("");
-      setIntensity([5]);
+      setIntensity([50]);
       setActivities([]);
       setNote("");
       toast({
@@ -92,8 +92,8 @@ export function MoodInterface() {
   };
 
   const getIntensityIcon = () => {
-    if (intensity[0] <= 3) return <Frown className="h-5 w-5 text-muted-foreground" />;
-    if (intensity[0] <= 7) return <Meh className="h-5 w-5 text-muted-foreground" />;
+    if (intensity[0] <= 33) return <Frown className="h-5 w-5 text-muted-foreground" />;
+    if (intensity[0] <= 66) return <Meh className="h-5 w-5 text-muted-foreground" />;
     return <Smile className="h-5 w-5 text-muted-foreground" />;
   };
 
@@ -130,15 +130,15 @@ export function MoodInterface() {
               <Label>Intensity</Label>
               <div className="flex items-center gap-2">
                 {getIntensityIcon()}
-                <span className="text-sm font-medium">{intensity[0]}/10</span>
+                <span className="text-sm font-medium">{intensity[0]}%</span>
               </div>
             </div>
             <Slider
               value={intensity}
               onValueChange={setIntensity}
-              min={1}
-              max={10}
-              step={1}
+              min={0}
+              max={100}
+              step={5}
               data-testid="slider-intensity"
             />
           </div>
@@ -224,7 +224,7 @@ export function MoodInterface() {
                         </div>
                       </div>
                       <Badge variant="outline" data-testid={`badge-intensity-${entry.id}`}>
-                        {entry.intensity}/10
+                        {entry.intensity}%
                       </Badge>
                     </div>
 
