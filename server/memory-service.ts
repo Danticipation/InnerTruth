@@ -116,17 +116,30 @@ Prioritize quality over quantity. Go deep.`
         max_tokens: 2000,  // More tokens for multi-level extraction
         top_p: 0.95,
         presence_penalty: 0.2,
-        frequency_penalty: 0.8
+        frequency_penalty: 0.8,
+        response_format: { type: "json_object" }  // Force valid JSON output
       });
 
       let response = completion.choices[0].message.content || "[]";
       
-      // Strip markdown code blocks if present (GPT-4o sometimes wraps JSON in ```json ... ```)
+      // DEBUG: Log raw response to diagnose parse errors
+      console.log('[MEMORY-SERVICE] Raw GPT response (first 500 chars):', response.substring(0, 500));
+      
+      // ROBUST: Strip markdown code blocks if GPT wraps JSON (common with GPT-4o)
       response = response.trim();
       if (response.startsWith('```')) {
-        // Remove opening ```json or ``` and closing ```
-        response = response.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+        // Remove ```json or ``` opening and closing markers
+        response = response.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
       }
+      
+      // Additional cleanup: remove any remaining non-JSON text before/after
+      const jsonStart = response.indexOf('[');
+      const jsonEnd = response.lastIndexOf(']');
+      if (jsonStart >= 0 && jsonEnd > jsonStart) {
+        response = response.substring(jsonStart, jsonEnd + 1);
+      }
+      
+      console.log('[MEMORY-SERVICE] Cleaned response (first 500 chars):', response.substring(0, 500));
       
       const facts = JSON.parse(response);
       
@@ -145,6 +158,12 @@ Prioritize quality over quantity. Go deep.`
     evidenceExcerpt: string
   ): Promise<void> {
     try {
+      // Defensive: Skip if extracted fact is invalid
+      if (!extractedFact || !extractedFact.fact || typeof extractedFact.fact !== 'string') {
+        console.warn('Skipping invalid extracted fact:', extractedFact);
+        return;
+      }
+      
       const existingFacts = await storage.getMemoryFactsByUserId(userId);
       
       const similarFact = existingFacts.find(
@@ -186,6 +205,11 @@ Prioritize quality over quantity. Go deep.`
   }
 
   private calculateSimilarity(text1: string, text2: string): number {
+    // Defensive: Guard against undefined/null inputs
+    if (!text1 || !text2 || typeof text1 !== 'string' || typeof text2 !== 'string') {
+      return 0;
+    }
+    
     const words1 = text1.toLowerCase().split(/\s+/);
     const words2 = text2.toLowerCase().split(/\s+/);
     const set1 = new Set(words1);

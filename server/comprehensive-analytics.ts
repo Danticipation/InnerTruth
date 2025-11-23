@@ -102,12 +102,21 @@ export class ComprehensiveAnalytics {
       const moodEntries = await storage.getMoodEntriesByUserId(userId);
       const memoryFacts = await storage.getMemoryFactsByUserId(userId);
       
+      // DEBUG: Log what we fetched
+      console.log('[COMPREHENSIVE-ANALYTICS] Data fetched for userId:', userId);
+      console.log('[COMPREHENSIVE-ANALYTICS] Conversations:', conversations.length);
+      console.log('[COMPREHENSIVE-ANALYTICS] Journal entries:', journalEntries.length);
+      console.log('[COMPREHENSIVE-ANALYTICS] Mood entries:', moodEntries.length);
+      console.log('[COMPREHENSIVE-ANALYTICS] Memory facts:', memoryFacts.length);
+      
       // Collect all messages from conversations
       let allMessages: Message[] = [];
       for (const conv of conversations) {
         const msgs = await storage.getMessagesByConversationId(conv.id);
+        console.log(`[COMPREHENSIVE-ANALYTICS] Conversation ${conv.id} has ${msgs.length} messages`);
         allMessages = allMessages.concat(msgs);
       }
+      console.log('[COMPREHENSIVE-ANALYTICS] Total messages:', allMessages.length);
 
       // Calculate statistics
       const statistics = this.calculateStatistics(
