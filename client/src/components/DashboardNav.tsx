@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "./ThemeToggle";
-import { Home, MessageSquare, BookOpen, BarChart3, Brain, User, Menu, X } from "lucide-react";
+import { Home, MessageSquare, BookOpen, BarChart3, Brain, User, Menu, X, Heart } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Logo } from "./Logo";
 import {
@@ -17,6 +17,7 @@ const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: Home },
   { path: "/chat", label: "Chat", icon: MessageSquare },
   { path: "/journal", label: "Journal", icon: BookOpen },
+  { path: "/mood", label: "Mood", icon: Heart },
   { path: "/insights", label: "Insights", icon: BarChart3 },
   { path: "/reflection", label: "Reflection", icon: Brain },
   { path: "/profile", label: "Profile", icon: User },

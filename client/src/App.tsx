@@ -10,6 +10,7 @@ import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Chat from "@/pages/Chat";
 import Journal from "@/pages/Journal";
+import Mood from "@/pages/Mood";
 import Insights from "@/pages/Insights";
 import PersonalityReflection from "@/pages/PersonalityReflection";
 import IntakeAssessment from "@/pages/IntakeAssessment";
@@ -34,6 +35,7 @@ function Router() {
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/chat" component={Chat} />
         <Route path="/journal" component={Journal} />
+        <Route path="/mood" component={Mood} />
         <Route path="/insights" component={Insights} />
         <Route path="/reflection" component={PersonalityReflection} />
         <Route path="/personality" component={PersonalityReflection} />
