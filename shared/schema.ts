@@ -103,6 +103,7 @@ export const moodEntries = pgTable("mood_entries", {
 export const personalityReflections = pgTable("personality_reflections", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
+  tier: text("tier").notNull().default('free'), // free, standard, premium
   summary: text("summary").notNull(),
   coreTraits: jsonb("core_traits").notNull(),
   behavioralPatterns: text("behavioral_patterns").array().notNull(),

@@ -468,13 +468,22 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
     }
   });
 
-  // Comprehensive personality reflection endpoint
+  // Comprehensive personality reflection endpoint with tier support
   app.post("/api/personality-reflection", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const { tier } = req.body as { tier?: 'free' | 'standard' | 'premium' };
       
-      // Generate comprehensive profile
-      const profile = await comprehensiveAnalytics.generatePersonalityProfile(userId);
+      // Default to free tier if not specified
+      const analysisTier = tier || 'free';
+      
+      // Validate tier
+      if (!['free', 'standard', 'premium'].includes(analysisTier)) {
+        return res.status(400).json({ error: "Invalid tier. Must be 'free', 'standard', or 'premium'" });
+      }
+      
+      // Generate comprehensive profile with tier
+      const profile = await comprehensiveAnalytics.generatePersonalityProfile(userId, analysisTier);
       
       if (!profile) {
         return res.status(400).json({ 
@@ -485,6 +494,7 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
       // Save the reflection (ensure all arrays default to [] for NOT NULL constraints)
       const reflection = await storage.createPersonalityReflection({
         userId,
+        tier: analysisTier,
         summary: profile.summary,
         coreTraits: profile.coreTraits,
         behavioralPatterns: profile.behavioralPatterns || [],

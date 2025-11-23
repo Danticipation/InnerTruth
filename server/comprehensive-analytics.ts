@@ -44,8 +44,29 @@ interface ComprehensiveProfile {
   };
 }
 
+// Tier configuration
+const TIER_CONFIG = {
+  free: {
+    sections: ['behavioralPatterns', 'growthAreas'],
+    includesHolyShit: false,
+    name: 'Starter Insights'
+  },
+  standard: {
+    sections: ['behavioralPatterns', 'emotionalPatterns', 'relationshipDynamics', 'growthAreas', 'strengths', 'blindSpots'],
+    includesHolyShit: false,
+    name: 'Deep Dive'
+  },
+  premium: {
+    sections: ['behavioralPatterns', 'emotionalPatterns', 'relationshipDynamics', 'copingMechanisms', 'growthAreas', 'strengths', 'blindSpots', 'valuesAndBeliefs', 'therapeuticInsights'],
+    includesHolyShit: true,
+    name: 'Devastating Truth'
+  }
+} as const;
+
+export type AnalysisTier = keyof typeof TIER_CONFIG;
+
 export class ComprehensiveAnalytics {
-  async generatePersonalityProfile(userId: string): Promise<ComprehensiveProfile | null> {
+  async generatePersonalityProfile(userId: string, tier: AnalysisTier = 'free'): Promise<ComprehensiveProfile | null> {
     try {
       // Gather ALL data sources
       const conversations = await storage.getConversationsByUserId(userId);
@@ -73,13 +94,14 @@ export class ComprehensiveAnalytics {
         return null;
       }
 
-      // Prepare comprehensive context for AI analysis
-      const profile = await this.analyzeWithAI(
+      // Prepare comprehensive context for AI analysis using multi-pass generation
+      const profile = await this.analyzeWithMultiPass(
         allMessages,
         journalEntries,
         moodEntries,
         memoryFacts,
-        statistics
+        statistics,
+        tier
       );
 
       return profile;
@@ -180,30 +202,83 @@ export class ComprehensiveAnalytics {
     return union.size > 0 ? intersection.size / union.size : 0;
   }
 
-  private async analyzeWithAI(
+  private async analyzeWithMultiPass(
+    messages: Message[],
+    journals: JournalEntry[],
+    moods: MoodEntry[],
+    facts: MemoryFact[],
+    statistics: any,
+    tier: AnalysisTier
+  ): Promise<ComprehensiveProfile> {
+    console.log(`[MULTI-PASS] Starting ${TIER_CONFIG[tier].name} analysis (${TIER_CONFIG[tier].sections.length} sections)...`);
+    
+    // Prepare shared context for all sections
+    const context = this.prepareAnalysisContext(messages, journals, moods, facts, statistics);
+    
+    // Generate core traits and summary first (always included)
+    const coreAnalysis = await this.generateCoreAnalysis(context);
+    
+    // Generate each section based on tier
+    const enabledSections = TIER_CONFIG[tier].sections;
+    const profile: any = {
+      summary: coreAnalysis.summary,
+      coreTraits: coreAnalysis.coreTraits,
+      statistics,
+      behavioralPatterns: [],
+      emotionalPatterns: [],
+      relationshipDynamics: [],
+      copingMechanisms: [],
+      growthAreas: [],
+      strengths: [],
+      blindSpots: [],
+      valuesAndBeliefs: [],
+      therapeuticInsights: []
+    };
+    
+    // Generate enabled sections in parallel for speed
+    const sectionPromises = enabledSections.map(async (sectionName) => {
+      const insights = await this.generateSection(sectionName, context);
+      return { sectionName, insights };
+    });
+    
+    const results = await Promise.all(sectionPromises);
+    results.forEach(({ sectionName, insights }) => {
+      profile[sectionName] = insights;
+    });
+    
+    // Generate holy shit moment and leverage point for premium tier
+    if (TIER_CONFIG[tier].includesHolyShit) {
+      const holyShit = await this.generateHolyShitMoment(context, profile);
+      profile.holyShitMoment = holyShit.holyShitMoment;
+      profile.growthLeveragePoint = holyShit.growthLeveragePoint;
+    }
+    
+    console.log('[MULTI-PASS] Analysis complete!');
+    return profile as ComprehensiveProfile;
+  }
+
+  private prepareAnalysisContext(
     messages: Message[],
     journals: JournalEntry[],
     moods: MoodEntry[],
     facts: MemoryFact[],
     statistics: any
-  ): Promise<ComprehensiveProfile> {
-    // Prepare data sections for AI
+  ) {
     const conversationText = messages
-      .slice(-100)  // Last 100 messages
+      .slice(-100)
       .map(m => `${m.role}: ${m.content}`)
       .join("\n");
 
     const journalText = journals
-      .slice(-20)  // Last 20 journal entries
+      .slice(-20)
       .map(j => `[${new Date(j.createdAt).toLocaleDateString()}]\n${j.content}`)
       .join("\n\n---\n\n");
 
     const moodText = moods
-      .slice(-30)  // Last 30 mood entries
+      .slice(-30)
       .map(m => `${m.mood} (${m.intensity}/10)${m.note ? ` - ${m.note}` : ''}`)
       .join("\n");
 
-    // Group facts by abstraction level for richer analytical context
     const factsByAbstraction: Record<string, any[]> = {
       raw_fact: [],
       inferred_belief: [],
@@ -232,6 +307,184 @@ export class ComprehensiveAnalytics {
         return `**${label}:**\n${factList}`;
       })
       .join("\n\n");
+
+    return {
+      conversationText,
+      journalText,
+      moodText,
+      factsText,
+      statistics
+    };
+  }
+
+  private async generateCoreAnalysis(context: any) {
+    const prompt = `Analyze this person's personality and generate a summary + Big 5 traits.
+
+DATA:
+${context.conversationText ? `CONVERSATIONS:\n${context.conversationText}\n\n` : ''}
+${context.journalText ? `JOURNALS:\n${context.journalText}\n\n` : ''}
+${context.moodText ? `MOODS:\n${context.moodText}\n\n` : ''}
+${context.factsText ? `MEMORY FACTS:\n${context.factsText}\n\n` : ''}
+
+Return JSON:
+{
+  "summary": "3-4 paragraph narrative synthesizing their personality with specific evidence",
+  "coreTraits": {
+    "big5": {
+      "openness": 0-100,
+      "conscientiousness": 0-100,
+      "extraversion": 0-100,
+      "agreeableness": 0-100,
+      "emotionalStability": 0-100
+    },
+    "archetype": "Their core archetype based on evidence",
+    "dominantTraits": ["trait 1", "trait 2", "trait 3"]
+  }
+}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a clinical psychologist generating personality analysis based on user data." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+      response_format: { type: "json_object" }
+    });
+
+    return JSON.parse(response.choices[0].message.content || "{}");
+  }
+
+  private async generateSection(sectionName: string, context: any): Promise<string[]> {
+    console.log(`[MULTI-PASS] Generating ${sectionName}...`);
+    
+    const sectionGuides = {
+      behavioralPatterns: {
+        format: '[TRIGGER] → [ACTION] → [CONSEQUENCE]',
+        focus: 'OBSERVABLE ACTIONS and behavioral chains',
+        example: 'When praised publicly (trigger), minimizes/deflects within seconds (action), prevents genuine acknowledgment and reinforces belief achievements don\'t matter (consequence)'
+      },
+      emotionalPatterns: {
+        format: '[APPRAISAL] → [EMOTIONAL RESPONSE] → [REGULATION]',
+        focus: 'Emotion PROCESSING and regulation strategies',
+        example: 'Interprets neutral feedback as rejection (appraisal) → shame spiral lasting 2-3 days (response) → isolates and over-prepares before next interaction (regulation)'
+      },
+      relationshipDynamics: {
+        format: 'Attachment theory lens - connection patterns',
+        focus: 'HOW they connect, attachment style behaviors',
+        example: 'Anxious-preoccupied: texts excessively when slow response (protest), then withdraws in shame. Classic activate-deactivate cycle'
+      },
+      copingMechanisms: {
+        format: 'Defense mechanisms - adaptive vs maladaptive',
+        focus: 'HOW they handle stress and emotional threats',
+        example: 'Intellectualization defense - shifts to abstract analysis when overwhelmed. Adaptive in work, maladaptive in intimacy'
+      },
+      growthAreas: {
+        format: 'Specific development areas with evidence',
+        focus: 'Clear opportunities for growth',
+        example: 'Difficulty tolerating uncertainty leads to premature decisions - rushes closure before gathering info'
+      },
+      strengths: {
+        format: 'Underutilized or unrecognized strengths',
+        focus: 'What they\'re good at but dismiss or underuse',
+        example: 'Exceptional pattern recognition detects relationship shifts early, but dismisses it as "overthinking"'
+      },
+      blindSpots: {
+        format: 'Self-perception gaps',
+        focus: 'What they can\'t see about themselves',
+        example: 'Claims to value independence yet makes all decisions based on others\' approval. Dependency is invisible, framed as "being considerate"'
+      },
+      valuesAndBeliefs: {
+        format: 'Implicit vs explicit values',
+        focus: 'What they ACTUALLY value vs what they SAY they value',
+        example: 'Says authenticity is paramount but performs "palatable" version in new relationships. Real value: acceptance > authenticity'
+      },
+      therapeuticInsights: {
+        format: 'Clinical-grade "holy shit" revelations',
+        focus: 'Deep psychological insights using professional frameworks',
+        example: 'Perfectionism isn\'t about achievement - it\'s hypervigilance to prevent abandonment. When "flawed", believes they\'re unlovable (defectiveness schema)'
+      }
+    };
+
+    const guide = sectionGuides[sectionName as keyof typeof sectionGuides];
+    
+    const prompt = `Generate 8-12 devastating psychological insights for: **${sectionName}**
+
+FORMAT: ${guide.format}
+FOCUS: ${guide.focus}
+EXAMPLE: "${guide.example}"
+
+DATA:
+${context.conversationText ? `CONVERSATIONS:\n${context.conversationText}\n\n` : ''}
+${context.journalText ? `JOURNALS:\n${context.journalText}\n\n` : ''}
+${context.moodText ? `MOODS:\n${context.moodText}\n\n` : ''}
+${context.factsText ? `MEMORY FACTS:\n${context.factsText}\n\n` : ''}
+
+REQUIREMENTS:
+1. Return 8-12 insights as a JSON array of strings
+2. Each insight MUST cite evidence from at least 2 data sources (dates, quotes, patterns)
+3. Go TWO inferential steps deeper - reveal what they DON'T already know
+4. Make insights specific, uncomfortable, and undeniable
+5. Use professional frameworks (Schema Therapy, IFS, Attachment Theory)
+
+Return JSON: {"insights": ["insight 1 with evidence", "insight 2 with evidence", ... 8-12 total]}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a clinical psychologist delivering devastating, evidence-based personality insights. Prioritize depth over comfort." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.8,
+      max_tokens: 3000,
+      frequency_penalty: 0.8,
+      response_format: { type: "json_object" }
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+    const insights = result.insights || [];
+    
+    console.log(`[MULTI-PASS] ${sectionName}: Generated ${insights.length} insights`);
+    return insights;
+  }
+
+  private async generateHolyShitMoment(context: any, profile: any) {
+    console.log('[MULTI-PASS] Generating Holy Shit Moment...');
+    
+    const prompt = `Based on ALL the insights below, identify THE single organizing principle that connects everything + ONE counter-intuitive action.
+
+INSIGHTS GENERATED:
+${JSON.stringify(profile, null, 2)}
+
+Return JSON:
+{
+  "holyShitMoment": "THE brutal, undeniable organizing principle connecting all patterns. Make it uncomfortable and revelatory.",
+  "growthLeveragePoint": "ONE counter-intuitive action targeting the core pattern (NOT generic advice like 'practice self-care')"
+}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a master psychologist identifying the core organizing principle in someone's personality." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.9,
+      max_tokens: 1000,
+      response_format: { type: "json_object" }
+    });
+
+    return JSON.parse(response.choices[0].message.content || "{}");
+  }
+
+  private async analyzeWithAI_LEGACY(
+    messages: Message[],
+    journals: JournalEntry[],
+    moods: MoodEntry[],
+    facts: MemoryFact[],
+    statistics: any
+  ): Promise<ComprehensiveProfile> {
+    const context = this.prepareAnalysisContext(messages, journals, moods, facts, statistics);
 
     // System message defining role and analytical frameworks
     const systemMessage = `You are an unforgiving, world-class personality analyst who has spent 30 years integrating Schema Therapy, Internal Family Systems (IFS), Attachment Theory, evolutionary psychology, psychodynamic defense mechanisms, and developmental trauma research.
