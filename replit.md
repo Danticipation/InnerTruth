@@ -78,5 +78,6 @@ The system enforces strict per-user data isolation for all sensitive information
 - Premium tier includes "Holy Shit Moment" - devastating synthesis of all patterns
 - All non-included sections initialized to empty arrays to satisfy NOT NULL constraints
 - **Integrated senior AI quality controls**: Each section now uses the same rigorous system message as the legacy implementation with anti-echo guardrails, contradiction detection, and forbidden phrases
-- **Added Jaccard similarity duplicate detection**: Automatically removes insights with >60% overlap within each section
+- **Added Jaccard similarity duplicate detection**: Automatically removes insights with >60% overlap within each section AND across sections
 - **Frequency penalty 0.8**: Prevents AI from repeating similar patterns across insights
+- **Type safety improvements**: Added validation to handle non-string AI responses gracefully, preventing crashes during deduplication
