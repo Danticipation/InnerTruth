@@ -2,9 +2,12 @@ import OpenAI from "openai";
 import { storage } from "./storage";
 import type { Message, JournalEntry } from "@shared/schema";
 
+// Prioritize direct OPENAI_API_KEY for unfiltered access
+const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey,
+  // Only use baseURL if using Replit integration
+  baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL
 });
 
 interface ExtractedFact {

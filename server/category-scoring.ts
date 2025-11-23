@@ -2,16 +2,17 @@ import { storage } from "./storage";
 import { getCategoryById } from "./categories";
 import OpenAI from "openai";
 
-// Initialize OpenAI client with fallbacks for both Replit AI Integrations and standard OpenAI
-const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
+// Initialize OpenAI client - prioritize direct API for unfiltered access
+const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
 if (!apiKey) {
-  console.error("ERROR: No OpenAI API key configured. Set either AI_INTEGRATIONS_OPENAI_API_KEY or OPENAI_API_KEY");
+  console.error("ERROR: No OpenAI API key configured. Set either OPENAI_API_KEY or AI_INTEGRATIONS_OPENAI_API_KEY");
   throw new Error("OpenAI API key not configured");
 }
 
 const openai = new OpenAI({
   apiKey,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL ?? "https://api.openai.com/v1"
+  // Only use baseURL if using Replit integration (AI_INTEGRATIONS_OPENAI_API_KEY)
+  baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL
 });
 
 export interface CategoryScoreResult {
