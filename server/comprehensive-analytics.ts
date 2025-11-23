@@ -36,6 +36,7 @@ interface ComprehensiveProfile {
   growthLeveragePoint?: string;
   statistics: {
     totalConversations: number;
+    totalMessages: number;
     totalJournalEntries: number;
     totalMoodEntries: number;
     totalMemoryFacts: number;
@@ -111,6 +112,7 @@ export class ComprehensiveAnalytics {
       // Calculate statistics
       const statistics = this.calculateStatistics(
         conversations,
+        allMessages,
         journalEntries,
         moodEntries,
         memoryFacts
@@ -140,6 +142,7 @@ export class ComprehensiveAnalytics {
 
   private calculateStatistics(
     conversations: any[],
+    messages: Message[],
     journalEntries: JournalEntry[],
     moodEntries: MoodEntry[],
     memoryFacts: MemoryFact[]
@@ -182,6 +185,7 @@ export class ComprehensiveAnalytics {
 
     return {
       totalConversations: conversations.length,
+      totalMessages: messages.length,
       totalJournalEntries: journalEntries.length,
       totalMoodEntries: moodEntries.length,
       totalMemoryFacts: memoryFacts.length,
@@ -789,16 +793,16 @@ Every single insight must make them think "holy shit, how did you know that?" - 
     const userPrompt = `Analyze this individual's psychology using ALL available data sources. Look for patterns they cannot see about themselves.
 
 === CONVERSATIONS (Last 100 messages) ===
-${conversationText}
+${context.conversationText}
 
 === JOURNAL ENTRIES (Last 20 entries) ===
-${journalText}
+${context.journalText}
 
 === MOOD TRACKING (Last 30 entries) ===
-${moodText}
+${context.moodText}
 
 === EXTRACTED FACTS (${facts.length} total facts) ===
-${factsText}
+${context.factsText}
 
 === STATISTICS ===
 ${JSON.stringify(statistics, null, 2)}

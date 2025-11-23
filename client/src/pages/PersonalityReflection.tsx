@@ -44,6 +44,7 @@ type PersonalityReflection = {
   growthLeveragePoint?: string | null;
   statistics: {
     totalConversations: number;
+    totalMessages: number;
     totalJournalEntries: number;
     totalMoodEntries: number;
     totalMemoryFacts: number;
@@ -408,7 +409,7 @@ ${reflection.summary}
                 <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto" />
                 <h2 className="text-2xl font-bold">Analyzing Your Personality...</h2>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  Processing {reflection?.statistics.totalConversations || 0} conversations, {reflection?.statistics.totalJournalEntries || 0} journal entries, 
+                  Processing {reflection?.statistics.totalMessages || 0} messages across {reflection?.statistics.totalConversations || 0} conversations, {reflection?.statistics.totalJournalEntries || 0} journal entries, 
                   and {reflection?.statistics.totalMemoryFacts || 0} extracted facts to create your comprehensive profile.
                 </p>
               </div>
@@ -1090,7 +1091,7 @@ ${reflection.summary}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
               <div>
                 <p className="font-semibold mb-1">Conversations</p>
-                <p className="text-muted-foreground">{reflection.statistics.totalConversations} total</p>
+                <p className="text-muted-foreground">{reflection.statistics.totalConversations} total ({reflection.statistics.totalMessages} messages)</p>
               </div>
               <div>
                 <p className="font-semibold mb-1">Journal Entries</p>
