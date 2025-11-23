@@ -185,6 +185,14 @@ export function ChatInterface() {
     },
     onSuccess: (data: any) => {
       setMessages(prev => [...prev, data.aiMessage]);
+    },
+    onError: (error: any) => {
+      console.error("Error sending message:", error);
+      toast({
+        title: "AI Response Failed",
+        description: "The AI couldn't generate a response. Please try rephrasing your message or try again later.",
+        variant: "destructive"
+      });
     }
   });
 
