@@ -109,8 +109,11 @@ Prioritize quality over quantity. Go deep.`
             content: text
           }
         ],
-        temperature: 0.5,  // Slightly higher for inferential depth
+        temperature: 0.3,  // Deterministic for fact extraction (per formula)
         max_tokens: 2000,  // More tokens for multi-level extraction
+        top_p: 0.95,
+        presence_penalty: 0.2,
+        frequency_penalty: 0.8
       });
 
       const response = completion.choices[0].message.content || "[]";

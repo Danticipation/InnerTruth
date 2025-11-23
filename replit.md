@@ -31,14 +31,18 @@ The design utilizes React, TypeScript, Tailwind CSS, and Shadcn UI for a profess
   - **Standard Tier**: 6 sections (adds Emotional Patterns, Relationship Dynamics, Strengths, Blind Spots) - deep dive analysis
   - **Premium Tier**: 9 sections (all Standard + Coping Mechanisms, Values & Beliefs, Therapeutic Insights) + Holy Shit Moment + Growth Leverage Point - devastating truth
 - **Multi-Pass Generation System**: Instead of single monolithic AI call, generates each of the 9 sections separately with focused prompts. Each section gets 8-12 insights using section-specific analytical formats (e.g., Behavioral Patterns use [TRIGGER] → [ACTION] → [CONSEQUENCE] format). Sections are generated in parallel for speed (~2-3 min total). Premium tier includes final "Holy Shit Moment" synthesis.
-- **Senior AI Quality Controls**: Each section uses an "unforgiving, world-class personality analyst" system message with strict analytical principles:
+- **Senior AI Quality Controls** (Complete Formula Implementation): Each section uses an "unforgiving, world-class personality analyst" system message with strict analytical principles:
+  - **Persona Enforcement**: "If you have nothing new or deep to say, you say 'Insufficient data for meaningful analysis' rather than bullshit"
   - **Triangulation Mandatory**: Every insight must cite evidence from 2+ data sources
   - **Inference Over Echoing**: Go 2 inferential steps deeper than surface observations
   - **Contradiction Detection**: Ruthlessly expose gaps between stated vs. actual behavior
   - **Anti-Echo Guardrails**: Forbidden phrases list prevents therapeutic clichés
+  - **Two-Step Chain-of-Thought**: First pass generates analysis, second pass (senior clinical supervisor) critiques and rewrites with mandatory rejection criteria
+  - **Few-Shot Examples**: 6 devastating analysis examples integrated into every section prompt to raise quality floor
   - **Jaccard Similarity**: Automatically removes duplicate insights (>60% overlap) within each section
-  - **Quality Threshold**: Every insight must make user think "holy shit, how did you know that?"
-- **AI Configuration**: GPT-4o with temperature 0.8, max tokens 3000 per section, frequency penalty 0.8 to prevent repetition, structured JSON output.
+  - **Quality Threshold**: Every insight must make user think "holy shit, how did you know that?" or be explicitly marked "Insufficient depth"
+- **AI Configuration**: GPT-4o with temperature 0.8-0.9 for analysis, temperature 0.3 for fact extraction, top_p 0.95, presence_penalty 0.2, frequency_penalty 0.8, max tokens 3000 per section, structured JSON output.
+- **Multi-Level Memory System**: Extracts facts at 4 abstraction levels (raw_fact, inferred_belief, defense_mechanism, ifs_part) with deterministic temperature 0.3
 - **Category Tracking**: Allows users to select improvement categories with tier-based limits, goal tracking, and AI-generated scores and insights.
 
 ### Feature Specifications

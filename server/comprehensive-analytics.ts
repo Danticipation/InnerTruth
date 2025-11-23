@@ -65,6 +65,30 @@ const TIER_CONFIG = {
 
 export type AnalysisTier = keyof typeof TIER_CONFIG;
 
+// Few-shot examples for devastating analysis (raises quality floor dramatically)
+const FEW_SHOT_EXAMPLES = {
+  blindSpot: `❌ BAD: "You struggle with anxiety because you mention feeling anxious often"
+✅ GOOD: "You claim to value independence yet make every significant decision based on anticipating others' approval—dependency is invisible to you because you've reframed it as 'being considerate.' Evidence: delayed career change by 2 years waiting for partner's nod (journal 3/12), chose apartment based on friends' reactions not your needs (chat 4/5), describes autonomous decisions as 'selfish' (mood pattern). The performance of independence hides complete reliance on external validation."`,
+
+  behavioralPattern: `❌ BAD: "When you get stressed, you tend to withdraw and need alone time"
+✅ GOOD: "[TRIGGER] When praised publicly (conversations 2/14, 3/8, 4/2) → [ACTION] minimizes achievement within seconds ('it was nothing', deflects to others) → [CONSEQUENCE] prevents genuine acknowledgment from landing, reinforces belief that achievements don't matter, others get credit. This isn't humility—it's a sophisticated pre-emptive strike against disappointment (Defectiveness schema). You can't lose what you never claimed."`,
+
+  emotionalPattern: `❌ BAD: "You have difficulty regulating emotions when criticized"
+✅ GOOD: "[APPRAISAL] Interprets neutral feedback as complete rejection (journals 1/15, 2/8) → [RESPONSE] shame spiral lasting 2-3 days, catastrophizing about competence → [REGULATION] isolates completely, then over-prepares obsessively before next interaction. Pattern: emotional dysregulation isn't random—it's alexithymia (can't differentiate shame from fear from sadness, so treats all as 'bad feeling' requiring shutdown). You're not over-sensitive; you're under-differentiated."`,
+
+  relationshipDynamic: `❌ BAD: "You have an anxious attachment style that affects your relationships"
+✅ GOOD: "Classic anxious-preoccupied pattern: When partner is slow to respond, escalates contact (texts every 30min, journals 3/4, 3/11), then feels 'too much' and withdraws in shame. The protest-shame cycle. But here's the blind spot: You've selected partners who reward this pattern—they need your pursuit to feel desired, then punish the intensity they created. You're not anxiously attached to everyone. You're specifically drawn to avoidant partners who confirm your belief that love requires constant performance (Emotional Deprivation schema)."`,
+
+  copingMechanism: `❌ BAD: "You use humor as a coping mechanism when things get hard"
+✅ GOOD: "Intellectualization defense activates immediately when emotional content emerges (chat 2/8, 2/15, 3/1): shifts to abstract analysis, quotes research, uses technical language. Adaptive in work contexts (allows clear thinking under pressure), maladaptive in intimacy (partner reports feeling 'locked out' when vulnerable, journal 3/11). The defense protects a young part that learned emotions = danger. You're not emotionally avoidant—you're employing a mature defense that's outlived its usefulness in relationships."`,
+
+  strength: `❌ BAD: "You're good at problem-solving and helping others"
+✅ GOOD: "Exceptional pattern recognition: detects relationship shifts 2-3 weeks before others notice (accurately predicted 4 friend conflicts, journal entries 1/12, 2/3, 2/28, 3/15) but systematically dismisses this as 'overthinking' or 'being paranoid.' This isn't anxiety—it's genuinely sophisticated social intelligence you've been trained to distrust. The dismissal protects against the risk of being labeled 'too much' but costs you the ability to act on accurate intuitions."`,
+
+  therapeuticInsight: `❌ BAD: "Working on self-compassion could help you be kinder to yourself"
+✅ GOOD: "Your perfectionism isn't about achievement—it's hypervigilance designed to prevent abandonment. Core belief: 'If I'm flawed, I'm unlovable' (Defectiveness schema). Evidence: mood crashes after ANY mistake (even minor, journals 2/1, 3/15), relationships end when you feel 'truly seen' (sabotage pattern), describes genuine self as 'disappointing' (chat 1/22). The perfectionist isn't trying to excel; it's a protector part (IFS) desperately preventing the Defective Exile from being exposed. Therapy direction: parts work to negotiate with the perfectionist, not eliminate it."`
+};
+
 export class ComprehensiveAnalytics {
   async generatePersonalityProfile(userId: string, tier: AnalysisTier = 'free'): Promise<ComprehensiveProfile | null> {
     try {
@@ -250,6 +274,46 @@ export class ComprehensiveAnalytics {
       profile[sectionName] = insights;
     });
     
+    // CROSS-SECTION DUPLICATE DETECTION (enforces anti-echo across entire analysis)
+    console.log('[MULTI-PASS] Running cross-section duplicate detection...');
+    const allInsights: Array<{section: string, insight: string, index: number}> = [];
+    
+    // Collect all insights from all sections
+    for (const sectionName of enabledSections) {
+      const insights = profile[sectionName] || [];
+      insights.forEach((insight: string, index: number) => {
+        allInsights.push({ section: sectionName, insight, index });
+      });
+    }
+    
+    // Check for cross-section duplicates
+    const duplicatePairs: Array<{section1: string, section2: string, overlap: number}> = [];
+    for (let i = 0; i < allInsights.length; i++) {
+      for (let j = i + 1; j < allInsights.length; j++) {
+        if (allInsights[i].section !== allInsights[j].section) {  // Only check across sections
+          const overlap = this.calculateTextOverlap(allInsights[i].insight, allInsights[j].insight);
+          if (overlap > 0.6) {
+            duplicatePairs.push({
+              section1: allInsights[i].section,
+              section2: allInsights[j].section,
+              overlap
+            });
+            
+            // Remove the duplicate from the second section (keep first occurrence)
+            const section2Insights = profile[allInsights[j].section];
+            section2Insights.splice(allInsights[j].index, 1);
+            console.warn(`[CROSS-SECTION DEDUP] Removed duplicate between ${allInsights[i].section} and ${allInsights[j].section} (${Math.round(overlap * 100)}% overlap)`);
+          }
+        }
+      }
+    }
+    
+    if (duplicatePairs.length > 0) {
+      console.warn(`[CROSS-SECTION DEDUP] Found and removed ${duplicatePairs.length} cross-section duplicates`);
+    } else {
+      console.log('[CROSS-SECTION DEDUP] No cross-section duplicates detected');
+    }
+    
     // Generate holy shit moment and leverage point for premium tier
     if (TIER_CONFIG[tier].includesHolyShit) {
       const holyShit = await this.generateHolyShitMoment(context, profile);
@@ -353,6 +417,9 @@ Return JSON:
         { role: "user", content: prompt }
       ],
       temperature: 0.7,
+      top_p: 0.95,
+      presence_penalty: 0.2,
+      frequency_penalty: 0.8,
       max_tokens: 2000,
       response_format: { type: "json_object" }
     });
@@ -361,63 +428,77 @@ Return JSON:
   }
 
   private async generateSection(sectionName: string, context: any): Promise<string[]> {
-    console.log(`[MULTI-PASS] Generating ${sectionName}...`);
+    console.log(`[MULTI-PASS] Generating ${sectionName} (2-step process)...`);
     
     const sectionGuides = {
       behavioralPatterns: {
         format: '[TRIGGER] → [ACTION] → [CONSEQUENCE]',
         focus: 'OBSERVABLE ACTIONS and behavioral chains',
-        example: 'When praised publicly (trigger), minimizes/deflects within seconds (action), prevents genuine acknowledgment and reinforces belief achievements don\'t matter (consequence)'
+        example: 'When praised publicly (trigger), minimizes/deflects within seconds (action), prevents genuine acknowledgment and reinforces belief achievements don\'t matter (consequence)',
+        fewShotExample: FEW_SHOT_EXAMPLES.behavioralPattern
       },
       emotionalPatterns: {
         format: '[APPRAISAL] → [EMOTIONAL RESPONSE] → [REGULATION]',
         focus: 'Emotion PROCESSING and regulation strategies',
-        example: 'Interprets neutral feedback as rejection (appraisal) → shame spiral lasting 2-3 days (response) → isolates and over-prepares before next interaction (regulation)'
+        example: 'Interprets neutral feedback as rejection (appraisal) → shame spiral lasting 2-3 days (response) → isolates and over-prepares before next interaction (regulation)',
+        fewShotExample: FEW_SHOT_EXAMPLES.emotionalPattern
       },
       relationshipDynamics: {
         format: 'Attachment theory lens - connection patterns',
         focus: 'HOW they connect, attachment style behaviors',
-        example: 'Anxious-preoccupied: texts excessively when slow response (protest), then withdraws in shame. Classic activate-deactivate cycle'
+        example: 'Anxious-preoccupied: texts excessively when slow response (protest), then withdraws in shame. Classic activate-deactivate cycle',
+        fewShotExample: FEW_SHOT_EXAMPLES.relationshipDynamic
       },
       copingMechanisms: {
         format: 'Defense mechanisms - adaptive vs maladaptive',
         focus: 'HOW they handle stress and emotional threats',
-        example: 'Intellectualization defense - shifts to abstract analysis when overwhelmed. Adaptive in work, maladaptive in intimacy'
+        example: 'Intellectualization defense - shifts to abstract analysis when overwhelmed. Adaptive in work, maladaptive in intimacy',
+        fewShotExample: FEW_SHOT_EXAMPLES.copingMechanism
       },
       growthAreas: {
         format: 'Specific development areas with evidence',
         focus: 'Clear opportunities for growth',
-        example: 'Difficulty tolerating uncertainty leads to premature decisions - rushes closure before gathering info'
+        example: 'Difficulty tolerating uncertainty leads to premature decisions - rushes closure before gathering info',
+        fewShotExample: FEW_SHOT_EXAMPLES.therapeuticInsight
       },
       strengths: {
         format: 'Underutilized or unrecognized strengths',
         focus: 'What they\'re good at but dismiss or underuse',
-        example: 'Exceptional pattern recognition detects relationship shifts early, but dismisses it as "overthinking"'
+        example: 'Exceptional pattern recognition detects relationship shifts early, but dismisses it as "overthinking"',
+        fewShotExample: FEW_SHOT_EXAMPLES.strength
       },
       blindSpots: {
         format: 'Self-perception gaps',
         focus: 'What they can\'t see about themselves',
-        example: 'Claims to value independence yet makes all decisions based on others\' approval. Dependency is invisible, framed as "being considerate"'
+        example: 'Claims to value independence yet makes all decisions based on others\' approval. Dependency is invisible, framed as "being considerate"',
+        fewShotExample: FEW_SHOT_EXAMPLES.blindSpot
       },
       valuesAndBeliefs: {
         format: 'Implicit vs explicit values',
         focus: 'What they ACTUALLY value vs what they SAY they value',
-        example: 'Says authenticity is paramount but performs "palatable" version in new relationships. Real value: acceptance > authenticity'
+        example: 'Says authenticity is paramount but performs "palatable" version in new relationships. Real value: acceptance > authenticity',
+        fewShotExample: FEW_SHOT_EXAMPLES.relationshipDynamic
       },
       therapeuticInsights: {
         format: 'Clinical-grade "holy shit" revelations',
         focus: 'Deep psychological insights using professional frameworks',
-        example: 'Perfectionism isn\'t about achievement - it\'s hypervigilance to prevent abandonment. When "flawed", believes they\'re unlovable (defectiveness schema)'
+        example: 'Perfectionism isn\'t about achievement - it\'s hypervigilance to prevent abandonment. When "flawed", believes they\'re unlovable (defectiveness schema)',
+        fewShotExample: FEW_SHOT_EXAMPLES.therapeuticInsight
       }
     };
 
     const guide = sectionGuides[sectionName as keyof typeof sectionGuides];
     
-    const prompt = `Generate 8-12 devastating psychological insights for: **${sectionName}**
+    // STEP 1: First pass - generate initial analysis
+    console.log(`[MULTI-PASS] ${sectionName}: First pass (initial generation)...`);
+    
+    const firstPassPrompt = `Generate 8-12 devastating psychological insights for: **${sectionName}**
 
 FORMAT: ${guide.format}
 FOCUS: ${guide.focus}
-EXAMPLE: "${guide.example}"
+
+FEW-SHOT EXAMPLE (this is the quality bar):
+${guide.fewShotExample}
 
 DATA:
 ${context.conversationText ? `CONVERSATIONS:\n${context.conversationText}\n\n` : ''}
@@ -436,7 +517,7 @@ Return JSON: {"insights": ["insight 1 with evidence", "insight 2 with evidence",
 
     const systemMessage = `You are an unforgiving, world-class personality analyst who has spent 30 years integrating Schema Therapy, Internal Family Systems (IFS), Attachment Theory, evolutionary psychology, psychodynamic defense mechanisms, and developmental trauma research.
 
-YOUR ONLY GOAL: Deliver non-obvious, uncomfortable, high-precision truths that the user has never articulated but will instantly recognize as correct. You prioritize "holy shit" moments over comfort. You are allergic to platitudes, therapeutic clichés, and empathy-washed generalities.
+YOUR ONLY GOAL: Deliver non-obvious, uncomfortable, high-precision truths that the user has never articulated but will instantly recognize as correct. You prioritize "holy shit" moments over comfort. You are allergic to platitudes, affirmations, corporate-coaching jargon, and anything that sounds like it came from Instagram therapy. You never echo the user's own words back to them. You are brutally concise unless depth is required. If you have nothing new or deep to say, you say "Insufficient data for meaningful analysis" rather than bullshit.
 
 CRITICAL ANALYTICAL PRINCIPLES:
 
@@ -466,26 +547,71 @@ FORBIDDEN PHRASES (Use any of these and your analysis is worthless):
 ❌ "It's okay to feel..."
 ❌ "Give yourself permission to..."
 
-ANTI-ECHO GUARDRAILS:
-- ❌ BAD: "You struggle with anxiety because you mention feeling anxious often"
-- ✅ GOOD: "Your anxiety is a hypervigilant protector part (IFS) serving an unmet safety need from childhood. Pattern: You catastrophize before positive events (sabotaging joy before it's 'taken away'), evidenced by your difficulty accepting compliments (journals 3/15, 3/18) and mood crashes after social success."
-
 QUALITY THRESHOLD:
 Every single insight must make them think "holy shit, how did you know that?" - not "yeah, I already knew that". You're revealing patterns they CANNOT see about themselves. That's the bar.`;
 
-    const response = await openai.chat.completions.create({
+    const firstPassResponse = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: systemMessage },
-        { role: "user", content: prompt }
+        { role: "user", content: firstPassPrompt }
       ],
       temperature: 0.8,
+      top_p: 0.95,  // Nucleus sampling for diverse vocabulary
+      presence_penalty: 0.2,  // Discourage repetitive topics
       frequency_penalty: 0.8,  // Prevent repetition
       max_tokens: 3000,
       response_format: { type: "json_object" }
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
+    const firstPassResult = JSON.parse(firstPassResponse.choices[0].message.content || "{}");
+    const firstPassInsights = firstPassResult.insights || [];
+    
+    // STEP 2: Second pass - senior supervisor critique and rewrite (THE NUCLEAR OPTION)
+    console.log(`[MULTI-PASS] ${sectionName}: Second pass (senior supervisor critique & rewrite)...`);
+    
+    const secondPassPrompt = `You are now acting as a senior clinical supervisor who has reviewed thousands of personality analyses and HATES mediocre work.
+
+Here was the first draft for ${sectionName}:
+${JSON.stringify(firstPassInsights, null, 2)}
+
+Your job: Tear this draft apart for being too obvious, too echoing, too soft, or too generic. Then rewrite it following every anti-echo rule TWICE as hard.
+
+MANDATORY REJECTION CRITERIA - For EACH insight, check:
+- Is it echoing the user's own words? → GO DEEPER or replace with "Insufficient depth — need more data"
+- Is it comfortable or obvious? → REJECT - replace with "Insufficient depth — need more data"
+- Does it cite evidence from 2+ sources? → If not, REJECT or add triangulated evidence
+- Does it reveal something they DON'T know about themselves? → If not, REJECT
+- Would a therapist be nervous to say this? → If not, it's too soft - REJECT
+- Does it overlap >60% with another insight? → REJECT as duplicate
+
+CRITICAL: If an insight fails ANY of these tests, you have TWO options:
+1. Replace it with "Insufficient depth — need more data" (if truly unsalvageable)
+2. Rewrite it to be devastatingly accurate with proper evidence and depth
+
+You MUST actively reject shallow insights. DO NOT just pass them through unchanged.
+
+Return the REWRITTEN analysis as JSON: {"insights": ["rewritten insight 1 OR 'Insufficient depth — need more data'", ...]}
+
+This is the final quality gate. Be merciless. Every insight must be "holy shit" level or explicitly marked insufficient.`;
+
+    const supervisorMessage = `You are a brutally honest senior clinical supervisor. Your standards are impossibly high. You reject anything that isn't "holy shit" level revelation. You prioritize devastating accuracy over comfort.`;
+
+    const secondPassResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: supervisorMessage },
+        { role: "user", content: secondPassPrompt }
+      ],
+      temperature: 0.9,  // Higher for more creative rewrites
+      top_p: 0.95,
+      presence_penalty: 0.2,
+      frequency_penalty: 0.8,
+      max_tokens: 3000,
+      response_format: { type: "json_object" }
+    });
+
+    const result = JSON.parse(secondPassResponse.choices[0].message.content || "{}");
     const insights = result.insights || [];
     
     // QUALITY CONTROL: Remove duplicates within this section using Jaccard similarity
@@ -544,6 +670,9 @@ Return JSON:
         { role: "user", content: prompt }
       ],
       temperature: 0.9,
+      top_p: 0.95,
+      presence_penalty: 0.2,
+      frequency_penalty: 0.8,
       max_tokens: 1000,
       response_format: { type: "json_object" }
     });
@@ -563,7 +692,7 @@ Return JSON:
     // System message defining role and analytical frameworks
     const systemMessage = `You are an unforgiving, world-class personality analyst who has spent 30 years integrating Schema Therapy, Internal Family Systems (IFS), Attachment Theory, evolutionary psychology, psychodynamic defense mechanisms, and developmental trauma research.
 
-YOUR ONLY GOAL: Deliver non-obvious, uncomfortable, high-precision truths that the user has never articulated but will instantly recognize as correct. You prioritize "holy shit" moments over comfort. You are allergic to platitudes, therapeutic clichés, and empathy-washed generalities.
+YOUR ONLY GOAL: Deliver non-obvious, uncomfortable, high-precision truths that the user has never articulated but will instantly recognize as correct. You prioritize "holy shit" moments over comfort. You are allergic to platitudes, affirmations, corporate-coaching jargon, and anything that sounds like it came from Instagram therapy. You never echo the user's own words back to them. You are brutally concise unless depth is required. If you have nothing new or deep to say, you say "Insufficient data for meaningful analysis" rather than bullshit.
 
 EXPERTISE AREAS:
 - Schema Therapy (identifying maladaptive schemas, coping modes, schema activation chains)
