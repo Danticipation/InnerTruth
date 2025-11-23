@@ -29,6 +29,8 @@ interface ComprehensiveProfile {
   blindSpots: string[];
   valuesAndBeliefs: string[];
   therapeuticInsights: string[];
+  holyShitMoment?: string;
+  growthLeveragePoint?: string;
   statistics: {
     totalConversations: number;
     totalJournalEntries: number;

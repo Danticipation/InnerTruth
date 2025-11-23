@@ -482,20 +482,22 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
         });
       }
 
-      // Save the reflection
+      // Save the reflection (ensure all arrays default to [] for NOT NULL constraints)
       const reflection = await storage.createPersonalityReflection({
         userId,
         summary: profile.summary,
         coreTraits: profile.coreTraits,
-        behavioralPatterns: profile.behavioralPatterns,
-        emotionalPatterns: profile.emotionalPatterns,
-        relationshipDynamics: profile.relationshipDynamics,
-        copingMechanisms: profile.copingMechanisms,
-        growthAreas: profile.growthAreas,
-        strengths: profile.strengths,
-        blindSpots: profile.blindSpots,
-        valuesAndBeliefs: profile.valuesAndBeliefs,
-        therapeuticInsights: profile.therapeuticInsights,
+        behavioralPatterns: profile.behavioralPatterns || [],
+        emotionalPatterns: profile.emotionalPatterns || [],
+        relationshipDynamics: profile.relationshipDynamics || [],
+        copingMechanisms: profile.copingMechanisms || [],
+        growthAreas: profile.growthAreas || [],
+        strengths: profile.strengths || [],
+        blindSpots: profile.blindSpots || [],
+        valuesAndBeliefs: profile.valuesAndBeliefs || [],
+        therapeuticInsights: profile.therapeuticInsights || [],
+        holyShitMoment: profile.holyShitMoment || null,
+        growthLeveragePoint: profile.growthLeveragePoint || null,
         statistics: profile.statistics,
       });
 
