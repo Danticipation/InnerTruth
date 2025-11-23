@@ -26,7 +26,12 @@ The design utilizes React, TypeScript, Tailwind CSS, and Shadcn UI for a profess
 - **Speech Integration**: Web Speech API for Speech-to-Text (STT) and Eleven Labs for high-quality Text-to-Speech (TTS), including advanced text processing to remove markdown and analytical labels. TTS is implemented for individual sections and journal entries.
 - **Conversation Management**: Persistent conversation history stored in PostgreSQL, with a three-tier loading priority and a "New Chat" option.
 - **Journal Management**: Features for saving, editing, and deleting journal entries with ownership verification and AI analysis triggers.
-- **Personality Analysis**: Uses professional psychological frameworks (Schema Therapy, IFS, Attachment Theory, etc.) to generate deep, non-obvious insights. It employs section-specific analytical formats, anti-echo guardrails to prevent superficial analysis, and a quality gate with Jaccard similarity to reject duplicate insights. AI configuration uses GPT-4o with temperature 0.8 and structured JSON output. Analysis is triggered continuously, with Level 1 (blind spots, growth opportunities) on journal saves and Level 2 (Big 5, core patterns, etc.) on dashboard load.
+- **Tiered Personality Analysis**: Uses professional psychological frameworks (Schema Therapy, IFS, Attachment Theory, etc.) with three tiers:
+  - **Free Tier**: 2 sections (Behavioral Patterns, Growth Areas) - basic insights
+  - **Standard Tier**: 6 sections (adds Emotional Patterns, Relationship Dynamics, Strengths, Blind Spots) - deep dive analysis
+  - **Premium Tier**: 9 sections (all Standard + Coping Mechanisms, Values & Beliefs, Therapeutic Insights) + Holy Shit Moment + Growth Leverage Point - devastating truth
+- **Multi-Pass Generation System**: Instead of single monolithic AI call, generates each of the 9 sections separately with focused prompts. Each section gets 8-12 insights using section-specific analytical formats (e.g., Behavioral Patterns use [TRIGGER] → [ACTION] → [CONSEQUENCE] format). Sections are generated in parallel for speed (~2-3 min total). Premium tier includes final "Holy Shit Moment" synthesis.
+- **AI Configuration**: GPT-4o with temperature 0.8, max tokens 3000 per section, frequency penalty 0.8 to prevent repetition, structured JSON output. Each insight must cite evidence from at least 2 data sources.
 - **Category Tracking**: Allows users to select improvement categories with tier-based limits, goal tracking, and AI-generated scores and insights.
 
 ### Feature Specifications
@@ -49,3 +54,15 @@ The system enforces strict per-user data isolation for all sensitive information
 - **Backend Framework**: Express.js
 - **ORM**: Drizzle ORM
 - **State Management**: TanStack Query (React Query)
+
+## Recent Changes
+
+### November 23, 2025 - Multi-Pass Tiered Analysis System
+- Implemented three-tier personality analysis pricing model (Free/$0, Standard/$9, Premium/$29)
+- Replaced single-pass AI generation with multi-pass system (9 separate focused calls per section)
+- Added tier field to personalityReflections database schema
+- Created TIER_CONFIG defining which sections are included at each tier
+- Built tier selection UI with pricing cards and feature comparison
+- Sections generated in parallel for speed, each with 8-12 evidence-based insights
+- Premium tier includes "Holy Shit Moment" - devastating synthesis of all patterns
+- All non-included sections initialized to empty arrays to satisfy NOT NULL constraints

@@ -220,6 +220,8 @@ export class ComprehensiveAnalytics {
     
     // Generate each section based on tier
     const enabledSections = TIER_CONFIG[tier].sections;
+    
+    // Initialize ALL sections to empty arrays to satisfy NOT NULL schema constraints
     const profile: any = {
       summary: coreAnalysis.summary,
       coreTraits: coreAnalysis.coreTraits,
@@ -232,10 +234,12 @@ export class ComprehensiveAnalytics {
       strengths: [],
       blindSpots: [],
       valuesAndBeliefs: [],
-      therapeuticInsights: []
+      therapeuticInsights: [],
+      holyShitMoment: null,
+      growthLeveragePoint: null
     };
     
-    // Generate enabled sections in parallel for speed
+    // Generate only enabled sections in parallel for speed
     const sectionPromises = enabledSections.map(async (sectionName) => {
       const insights = await this.generateSection(sectionName, context);
       return { sectionName, insights };

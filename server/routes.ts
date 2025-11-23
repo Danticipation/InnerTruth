@@ -474,6 +474,8 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
       const userId = req.user.claims.sub;
       const { tier } = req.body as { tier?: 'free' | 'standard' | 'premium' };
       
+      console.log('[PERSONALITY-REFLECTION] Request received:', { userId, requestedTier: tier, body: req.body });
+      
       // Default to free tier if not specified
       const analysisTier = tier || 'free';
       
@@ -481,6 +483,8 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
       if (!['free', 'standard', 'premium'].includes(analysisTier)) {
         return res.status(400).json({ error: "Invalid tier. Must be 'free', 'standard', or 'premium'" });
       }
+      
+      console.log('[PERSONALITY-REFLECTION] Generating profile with tier:', analysisTier);
       
       // Generate comprehensive profile with tier
       const profile = await comprehensiveAnalytics.generatePersonalityProfile(userId, analysisTier);
