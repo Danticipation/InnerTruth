@@ -117,6 +117,49 @@ const StatCard = ({ icon: Icon, label, value, description }: { icon: any; label:
   </Card>
 );
 
+const LockedSectionCard = ({ 
+  title, 
+  description, 
+  icon: Icon,
+  requiredTier 
+}: { 
+  title: string; 
+  description: string; 
+  icon: any;
+  requiredTier: AnalysisTier;
+}) => (
+  <Card className="opacity-60 border-dashed" data-testid={`card-locked-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+    <CardHeader>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Icon className="h-5 w-5" />
+            {title}
+            <Badge variant="secondary" className="ml-2" data-testid={`badge-locked-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+              {TIER_CONFIG[requiredTier].name} Only
+            </Badge>
+          </CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </div>
+      </div>
+    </CardHeader>
+    <CardContent>
+      <div className="flex items-center justify-center py-8 text-center">
+        <div className="space-y-4">
+          <Rocket className="h-12 w-12 text-muted-foreground mx-auto" />
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Unlock this section with {TIER_CONFIG[requiredTier].name} tier
+          </p>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+function isSectionEnabled(sectionName: string, tier: AnalysisTier): boolean {
+  return TIER_CONFIG[tier].sections.includes(sectionName as any);
+}
+
 export default function PersonalityReflection() {
   const [playingSection, setPlayingSection] = useState<string | null>(null);
   const [selectedTier, setSelectedTier] = useState<AnalysisTier>('free');
@@ -385,9 +428,14 @@ ${reflection.summary}
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-1 sm:mb-2" data-testid="text-reflection-title">
-              Your Comprehensive Personality Reflection
-            </h1>
+            <div className="flex items-center gap-3 mb-1 sm:mb-2">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold" data-testid="text-reflection-title">
+                Your Comprehensive Personality Reflection
+              </h1>
+              <Badge variant="default" className="hidden sm:inline-flex" data-testid="badge-current-tier">
+                {TIER_CONFIG[reflection.tier].name}
+              </Badge>
+            </div>
             <p className="text-xs sm:text-sm text-muted-foreground">
               Generated {new Date(reflection.createdAt).toLocaleDateString()} • Deep AI Analysis
             </p>
