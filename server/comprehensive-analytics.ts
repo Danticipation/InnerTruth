@@ -566,8 +566,61 @@ Return JSON:
     return [`Analysis unavailable - unexpected error in ${sectionName} generation.`];
   }
 
+  private async generateSectionSimplified(sectionName: string, context: any): Promise<string[]> {
+    console.log(`[SIMPLIFIED] ${sectionName}: Using high-urgency simplified prompt (retry path)...`);
+    
+    // Trim context to most recent/important evidence only
+    const trimmedContext = {
+      conversationText: context.conversationText ? context.conversationText.slice(0, 3000) : '',
+      journalText: context.journalText ? context.journalText.slice(0, 2000) : '',
+      moodText: context.moodText ? context.moodText.slice(0, 1000) : '',
+      factsText: context.factsText ? context.factsText.slice(0, 2000) : ''
+    };
+    
+    const simplifiedPrompt = `URGENT: Generate exactly 8 brutal psychological insights for ${sectionName}. NO polite language. NO hedging. Direct clinical facts only.
+
+DATA (trimmed):
+${trimmedContext.conversationText ? `CONVERSATIONS: ${trimmedContext.conversationText}\n\n` : ''}
+${trimmedContext.journalText ? `JOURNALS: ${trimmedContext.journalText}\n\n` : ''}
+${trimmedContext.moodText ? `MOODS: ${trimmedContext.moodText}\n\n` : ''}
+${trimmedContext.factsText ? `FACTS: ${trimmedContext.factsText}\n\n` : ''}
+
+REQUIREMENTS:
+1. Exactly 8 insights (no more, no less)
+2. Zero hedging ("might," "perhaps," "could be") - state facts
+3. Zero softening ("understandable," "many people") - be blunt
+4. Each insight must be uncomfortable/revealing
+5. Reference evidence when possible
+
+Return JSON: {"insights": ["insight 1", "insight 2", ... exactly 8 total]}`;
+
+    const simplifiedSystemMessage = `You are a clinical diagnostician delivering findings. State uncomfortable truths like a pathologist reading an autopsy report: direct, factual, unflinching. NO therapy speak. NO reassurance. If you have nothing devastating to say, write "Insufficient data" instead of polite bullshit.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: simplifiedSystemMessage },
+        { role: "user", content: simplifiedPrompt }
+      ],
+      temperature: 0.85,
+      max_tokens: 2000,
+      response_format: { type: "json_object" }
+    });
+
+    const result = this.parseAIResponse(response.choices[0].message.content || "{}");
+    const insights = result.insights || [];
+    
+    console.log(`[SIMPLIFIED] ${sectionName}: Generated ${insights.length} insights via simplified path`);
+    return insights;
+  }
+
   private async generateSection(sectionName: string, context: any, useSimplifiedPrompt: boolean = false): Promise<string[]> {
     console.log(`[MULTI-PASS] Generating ${sectionName} (2-step process${useSimplifiedPrompt ? ', simplified prompt' : ''})...`);
+    
+    // SIMPLIFIED PROMPT PATH: Used for retries when full prompt failed
+    if (useSimplifiedPrompt) {
+      return this.generateSectionSimplified(sectionName, context);
+    }
     
     const sectionGuides = {
       behavioralPatterns: {

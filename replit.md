@@ -76,15 +76,26 @@ The system enforces strict per-user data isolation for all sensitive information
 - **Trade-off accepted**: User pays directly for OpenAI API usage (~$0.01-0.03 per analysis) in exchange for complete control over prompt content without corporate filtering
 - **Anti-word-salad rules preserved**: Max 2 hyphens per insight, clear sentence structure, no jargon stacking - maintained regardless of API source
 
-### November 24, 2025 - Evidence-Based Analysis with Citation Enforcement
-- **Citation handle system**: All evidence sources now include explicit IDs ([MSG-xxxxx], [JOURNAL-xxxxx], [MOOD-xxxxx], [FACT-xxxxx]) for precise cross-source referencing
-- **Cross-source triangulation enforcement**: Each insight MUST cite ≥2 different source types (e.g., conversation + journal, mood + fact) to prevent single-source echoing
-- **Post-generation citation validation**: Automatic validation rejects insights lacking proper cross-source citations before they reach the user
-- **Enhanced supervisor with rejection enforcement**: Second-pass supervisor has explicit 30-40% rejection target with 6 mandatory criteria (citation verification, echo check, revelation test, therapeutic nerve test, word salad check, duplicate check)
-- **Rejection metrics logging**: System now logs rejectionCount and rejectionReasons to track quality gate effectiveness
-- **Cross-source summary aggregation**: Added generateCrossSourceSummary() that provides mood trends (avg intensity, dominant moods), conversation activity, journal consistency patterns, and memory fact distribution
-- **Strengthened few-shot examples**: All 7 examples now demonstrate proper cross-source citation format with explicit handles to teach GPT-4o proper triangulation
-- **Quality gate reporting**: Automatic warnings when citation pass rate drops below 50% or supervisor approval rate exceeds 70%
+### November 24, 2025 - Retry Logic & Brutal Tone Enforcement
+- **Rolled back citation enforcement system**: Removed citation handles and cross-source triangulation requirements that broke GPT-4o and produced surface-level analysis
+- **Implemented retry logic with simplified prompts**:
+  - Created `generateSectionWithRetry()` wrapper (max 2 attempts per section)
+  - First attempt uses full two-pass prompt system
+  - Second attempt (if needed) uses `generateSectionSimplified()` with trimmed context (conversations 3k, journals 2k, moods 1k, facts 2k chars)
+  - Simplified prompt demands exactly 8 insights with brutal tone, single-pass generation for speed
+  - Fallback messages prevent blank sections: "Analysis unavailable - [reason]" if all attempts fail
+  - Comprehensive logging: retry attempts, reasons, success/failure rates
+- **Enhanced brutal tone requirements**:
+  - Added explicit "TONE REQUIREMENTS" section to system message forbidding ALL hedging ("might," "perhaps"), softening ("understandable," "many people"), and reassurance language
+  - Changed goal from "holy shit moments" to "devastating truths like a clinical diagnostician delivering findings"
+  - Added instruction: "State facts like a pathologist reading an autopsy report: direct, clinical, unflinching"
+  - Supervisor prompt: Added "TONE CHECK" as mandatory #1 criterion with ZERO tolerance for polite/therapy language
+  - Supervisor enforces "devastating truth" standard instead of comfortable therapy speak
+- **Quality improvements**:
+  - Sections never render blank (fallback messages ensure visibility)
+  - Retry system addresses JSON parsing failures and under-delivered sections
+  - Brutal tone enforcement tackles "AI being polite" complaints
+  - Maintained anti-word-salad rules (max 2 hyphens, clear sentences, no jargon stacking)
 
 ### November 23, 2025 - Mood Tracking UI & Message Count Display
 - **Added complete mood tracking interface**: Created Mood page (client/src/pages/Mood.tsx) with MoodInterface component for logging moods with intensity, activities, and notes
