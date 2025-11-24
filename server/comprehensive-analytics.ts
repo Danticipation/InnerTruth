@@ -69,28 +69,28 @@ const TIER_CONFIG = {
 
 export type AnalysisTier = keyof typeof TIER_CONFIG;
 
-// Few-shot examples for devastating analysis (raises quality floor dramatically)
+// Few-shot examples for devastating analysis with EXPLICIT CROSS-SOURCE CITATIONS
 const FEW_SHOT_EXAMPLES = {
   blindSpot: `❌ BAD: "You struggle with anxiety because you mention feeling anxious often"
-✅ GOOD: "You claim to value independence yet make every significant decision based on anticipating others' approval—dependency is invisible to you because you've reframed it as 'being considerate.' Evidence: delayed career change by 2 years waiting for partner's nod (journal 3/12), chose apartment based on friends' reactions not your needs (chat 4/5), describes autonomous decisions as 'selfish' (mood pattern). The performance of independence hides complete reliance on external validation."`,
+✅ GOOD WITH CITATIONS: "You claim to value independence [MSG-a1b2c3d4] yet make every significant decision based on anticipating others' approval—dependency is invisible to you because you've reframed it as 'being considerate' [JOURNAL-e5f6g7h8][3/12]. Evidence across sources: delayed career change by 2 years waiting for partner's nod [JOURNAL-i9j0k1l2], chose apartment based on friends' reactions not your needs [MSG-m3n4o5p6], describes autonomous decisions as 'selfish' [MOOD-q7r8s9t0][4/15]. The performance of independence hides complete reliance on external validation. Pattern confirmed in [FACT-u1v2w3x4]."`,
 
   behavioralPattern: `❌ BAD: "When you get stressed, you tend to withdraw and need alone time"
-✅ GOOD: "[TRIGGER] When praised publicly (conversations 2/14, 3/8, 4/2) → [ACTION] minimizes achievement within seconds ('it was nothing', deflects to others) → [CONSEQUENCE] prevents genuine acknowledgment from landing, reinforces belief that achievements don't matter, others get credit. This isn't humility—it's a sophisticated pre-emptive strike against disappointment (Defectiveness schema). You can't lose what you never claimed."`,
+✅ GOOD WITH CITATIONS: "[TRIGGER] When praised publicly [MSG-a1b2c3d4][MSG-e5f6g7h8][MSG-i9j0k1l2] → [ACTION] minimizes achievement within seconds ('it was nothing', deflects to others) [JOURNAL-m3n4o5p6] → [CONSEQUENCE] prevents genuine acknowledgment from landing, reinforces belief that achievements don't matter, others get credit [FACT-q7r8s9t0]. Cross-source pattern: Same deflection appears in [MOOD-u1v2w3x4] notes and [JOURNAL-y5z6a7b8]. This isn't humility—it's a sophisticated pre-emptive strike against disappointment (Defectiveness schema). You can't lose what you never claimed."`,
 
   emotionalPattern: `❌ BAD: "You have difficulty regulating emotions when criticized"
-✅ GOOD: "[APPRAISAL] Interprets neutral feedback as complete rejection (journals 1/15, 2/8) → [RESPONSE] shame spiral lasting 2-3 days, catastrophizing about competence → [REGULATION] isolates completely, then over-prepares obsessively before next interaction. Pattern: emotional dysregulation isn't random—it's alexithymia (can't differentiate shame from fear from sadness, so treats all as 'bad feeling' requiring shutdown). You're not over-sensitive; you're under-differentiated."`,
+✅ GOOD WITH CITATIONS: "[APPRAISAL] Interprets neutral feedback as complete rejection [JOURNAL-a1b2c3d4][1/15], [JOURNAL-e5f6g7h8][2/8] → [RESPONSE] shame spiral lasting 2-3 days [MOOD-i9j0k1l2][MOOD-m3n4o5p6][MOOD-q7r8s9t0], catastrophizing about competence [MSG-u1v2w3x4] → [REGULATION] isolates completely [FACT-y5z6a7b8], then over-prepares obsessively before next interaction [JOURNAL-c9d0e1f2]. Pattern: emotional dysregulation isn't random—it's alexithymia (can't differentiate shame from fear from sadness). You're not over-sensitive; you're under-differentiated."`,
 
   relationshipDynamic: `❌ BAD: "You have an anxious attachment style that affects your relationships"
-✅ GOOD: "Classic anxious-preoccupied pattern: When partner is slow to respond, escalates contact (texts every 30min, journals 3/4, 3/11), then feels 'too much' and withdraws in shame. The protest-shame cycle. But here's the blind spot: You've selected partners who reward this pattern—they need your pursuit to feel desired, then punish the intensity they created. You're not anxiously attached to everyone. You're specifically drawn to avoidant partners who confirm your belief that love requires constant performance (Emotional Deprivation schema)."`,
+✅ GOOD WITH CITATIONS: "Classic anxious-preoccupied pattern: When partner is slow to respond, escalates contact [MSG-a1b2c3d4][MSG-e5f6g7h8] (texts every 30min), then feels 'too much' and withdraws in shame [JOURNAL-i9j0k1l2][3/4], [JOURNAL-m3n4o5p6][3/11]. The protest-shame cycle. But here's the blind spot verified across [FACT-q7r8s9t0][MOOD-u1v2w3x4]: You've selected partners who reward this pattern—they need your pursuit to feel desired, then punish the intensity they created [JOURNAL-y5z6a7b8]. You're specifically drawn to avoidant partners who confirm your belief that love requires constant performance (Emotional Deprivation schema)."`,
 
   copingMechanism: `❌ BAD: "You use humor as a coping mechanism when things get hard"
-✅ GOOD: "Intellectualization defense activates immediately when emotional content emerges (chat 2/8, 2/15, 3/1): shifts to abstract analysis, quotes research, uses technical language. Adaptive in work contexts (allows clear thinking under pressure), maladaptive in intimacy (partner reports feeling 'locked out' when vulnerable, journal 3/11). The defense protects a young part that learned emotions = danger. You're not emotionally avoidant—you're employing a mature defense that's outlived its usefulness in relationships."`,
+✅ GOOD WITH CITATIONS: "Intellectualization defense activates immediately when emotional content emerges [MSG-a1b2c3d4][2/8], [MSG-e5f6g7h8][2/15], [MSG-i9j0k1l2][3/1]: shifts to abstract analysis, quotes research, uses technical language. Cross-validated in [FACT-m3n4o5p6] and [JOURNAL-q7r8s9t0]. Adaptive in work contexts (allows clear thinking under pressure), maladaptive in intimacy (partner reports feeling 'locked out' when vulnerable [JOURNAL-u1v2w3x4][3/11]). The defense protects a young part that learned emotions = danger [FACT-y5z6a7b8]. You're not emotionally avoidant—you're employing a mature defense that's outlived its usefulness."`,
 
   strength: `❌ BAD: "You're good at problem-solving and helping others"
-✅ GOOD: "Exceptional pattern recognition: detects relationship shifts 2-3 weeks before others notice (accurately predicted 4 friend conflicts, journal entries 1/12, 2/3, 2/28, 3/15) but systematically dismisses this as 'overthinking' or 'being paranoid.' This isn't anxiety—it's genuinely sophisticated social intelligence you've been trained to distrust. The dismissal protects against the risk of being labeled 'too much' but costs you the ability to act on accurate intuitions."`,
+✅ GOOD WITH CITATIONS: "Exceptional pattern recognition: detects relationship shifts 2-3 weeks before others notice (accurately predicted 4 friend conflicts [JOURNAL-a1b2c3d4][1/12], [JOURNAL-e5f6g7h8][2/3], [JOURNAL-i9j0k1l2][2/28], [JOURNAL-m3n4o5p6][3/15]) but systematically dismisses this as 'overthinking' or 'being paranoid' [MSG-q7r8s9t0][FACT-u1v2w3x4]. This isn't anxiety—it's genuinely sophisticated social intelligence you've been trained to distrust [MOOD-y5z6a7b8] notes. The dismissal protects against the risk of being labeled 'too much' but costs you the ability to act on accurate intuitions."`,
 
   therapeuticInsight: `❌ BAD: "Working on self-compassion could help you be kinder to yourself"
-✅ GOOD: "Your perfectionism isn't about achievement—it's hypervigilance designed to prevent abandonment. Core belief: 'If I'm flawed, I'm unlovable' (Defectiveness schema). Evidence: mood crashes after ANY mistake (even minor, journals 2/1, 3/15), relationships end when you feel 'truly seen' (sabotage pattern), describes genuine self as 'disappointing' (chat 1/22). The perfectionist isn't trying to excel; it's a protector part (IFS) desperately preventing the Defective Exile from being exposed. Therapy direction: parts work to negotiate with the perfectionist, not eliminate it."`
+✅ GOOD WITH CITATIONS: "Your perfectionism isn't about achievement—it's hypervigilance designed to prevent abandonment. Core belief: 'If I'm flawed, I'm unlovable' (Defectiveness schema) [FACT-a1b2c3d4]. Evidence across sources: mood crashes after ANY mistake [MOOD-e5f6g7h8][MOOD-i9j0k1l2] even minor [JOURNAL-m3n4o5p6][2/1], [JOURNAL-q7r8s9t0][3/15], relationships end when you feel 'truly seen' (sabotage pattern) [MSG-u1v2w3x4], describes genuine self as 'disappointing' [MSG-y5z6a7b8][1/22]. The perfectionist isn't trying to excel; it's a protector part (IFS) desperately preventing the Defective Exile from being exposed. Therapy direction: parts work to negotiate with the perfectionist, not eliminate it."`
 };
 
 export class ComprehensiveAnalytics {
@@ -349,21 +349,39 @@ export class ComprehensiveAnalytics {
     facts: MemoryFact[],
     statistics: any
   ) {
-    const conversationText = messages
-      .slice(-100)
-      .map(m => `${m.role}: ${m.content}`)
+    // ===== ENHANCED EVIDENCE ASSEMBLY WITH CITATION HANDLES =====
+    // Each piece of evidence includes explicit citation ID so AI must reference specific sources
+    
+    // CONVERSATIONS: Include message ID and index for precise citations
+    const recentMessages = messages.slice(-100);
+    const conversationText = recentMessages
+      .map((m, idx) => {
+        const shortId = m.id.slice(0, 8);
+        return `[MSG-${shortId}] ${m.role}: ${m.content}`;
+      })
       .join("\n");
 
-    const journalText = journals
-      .slice(-20)
-      .map(j => `[${new Date(j.createdAt).toLocaleDateString()}]\n${j.content}`)
+    // JOURNALS: Include journal ID and date for precise citations
+    const recentJournals = journals.slice(-20);
+    const journalText = recentJournals
+      .map(j => {
+        const shortId = j.id.slice(0, 8);
+        const date = new Date(j.createdAt).toLocaleDateString();
+        return `[JOURNAL-${shortId}][${date}]\n${j.content}`;
+      })
       .join("\n\n---\n\n");
 
-    const moodText = moods
-      .slice(-30)
-      .map(m => `${m.mood} (${m.intensity}/10)${m.note ? ` - ${m.note}` : ''}`)
+    // MOODS: Include mood entry ID and date for precise citations
+    const recentMoods = moods.slice(-30);
+    const moodText = recentMoods
+      .map(m => {
+        const shortId = m.id.slice(0, 8);
+        const date = new Date(m.createdAt).toLocaleDateString();
+        return `[MOOD-${shortId}][${date}] ${m.mood} (${m.intensity}%)${m.note ? ` - ${m.note}` : ''}${m.activities && m.activities.length > 0 ? ` [${m.activities.join(', ')}]` : ''}`;
+      })
       .join("\n");
 
+    // MEMORY FACTS: Include fact ID and category for precise citations
     const factsByAbstraction: Record<string, any[]> = {
       raw_fact: [],
       inferred_belief: [],
@@ -386,20 +404,94 @@ export class ComprehensiveAnalytics {
                       'IFS PARTS';
         
         const factList = items
-          .map(f => `• ${f.factContent} (${f.category}, confidence: ${f.confidence}%)`)
+          .map(f => {
+            const shortId = f.id.slice(0, 8);
+            return `[FACT-${shortId}] ${f.factContent} (${f.category}, confidence: ${f.confidence}%)`;
+          })
           .join("\n");
         
         return `**${label}:**\n${factList}`;
       })
       .join("\n\n");
 
+    // CROSS-SOURCE SUMMARY: Aggregate patterns for triangulation
+    const crossSourceSummary = this.generateCrossSourceSummary(recentMessages, recentJournals, recentMoods, facts, statistics);
+
     return {
       conversationText,
       journalText,
       moodText,
       factsText,
-      statistics
+      crossSourceSummary,
+      statistics,
+      // Metadata for validation
+      citationMeta: {
+        messageIds: recentMessages.map(m => m.id.slice(0, 8)),
+        journalIds: recentJournals.map(j => j.id.slice(0, 8)),
+        moodIds: recentMoods.map(m => m.id.slice(0, 8)),
+        factIds: facts.map(f => f.id.slice(0, 8))
+      }
     };
+  }
+
+  // Generate cross-source evidence clusters for triangulation
+  private generateCrossSourceSummary(
+    messages: Message[],
+    journals: JournalEntry[],
+    moods: MoodEntry[],
+    facts: MemoryFact[],
+    statistics: any
+  ): string {
+    const summary = [];
+    
+    // Mood patterns over time
+    if (moods.length >= 3) {
+      const avgIntensity = moods.reduce((sum, m) => sum + m.intensity, 0) / moods.length;
+      const moodCounts: Record<string, number> = {};
+      moods.forEach(m => {
+        moodCounts[m.mood] = (moodCounts[m.mood] || 0) + 1;
+      });
+      const dominantMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0];
+      
+      summary.push(`**MOOD TRENDS:** ${moods.length} entries, avg intensity ${Math.round(avgIntensity)}%, most common: ${dominantMood[0]} (${dominantMood[1]} times)`);
+    }
+    
+    // Conversation themes
+    if (messages.length >= 5) {
+      const userMessages = messages.filter(m => m.role === 'user');
+      summary.push(`**CONVERSATION ACTIVITY:** ${userMessages.length} user messages across ${messages.length} total exchanges`);
+    }
+    
+    // Journal consistency
+    if (journals.length >= 2) {
+      const dates = journals.map(j => new Date(j.createdAt).getTime());
+      const timeDiffs = [];
+      for (let i = 1; i < dates.length; i++) {
+        timeDiffs.push((dates[i] - dates[i-1]) / (1000 * 60 * 60 * 24)); // days
+      }
+      const avgDaysBetween = timeDiffs.length > 0 
+        ? Math.round(timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length)
+        : 0;
+      summary.push(`**JOURNAL PATTERNS:** ${journals.length} entries, avg ${avgDaysBetween} days between entries`);
+    }
+    
+    // Memory fact distribution
+    if (facts.length > 0) {
+      const byCategory: Record<string, number> = {};
+      facts.forEach(f => {
+        byCategory[f.category] = (byCategory[f.category] || 0) + 1;
+      });
+      const topCategories = Object.entries(byCategory)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([cat, count]) => `${cat}(${count})`)
+        .join(', ');
+      summary.push(`**MEMORY FACTS:** ${facts.length} total, top categories: ${topCategories}`);
+    }
+    
+    return summary.length > 0 
+      ? `**CROSS-SOURCE PATTERNS:**\n${summary.join('\n')}`
+      : '';
   }
 
   private async generateCoreAnalysis(context: any) {
@@ -517,20 +609,27 @@ FOCUS: ${guide.focus}
 FEW-SHOT EXAMPLE (this is the quality bar):
 ${guide.fewShotExample}
 
-DATA:
-${context.conversationText ? `CONVERSATIONS:\n${context.conversationText}\n\n` : ''}
-${context.journalText ? `JOURNALS:\n${context.journalText}\n\n` : ''}
-${context.moodText ? `MOODS:\n${context.moodText}\n\n` : ''}
-${context.factsText ? `MEMORY FACTS:\n${context.factsText}\n\n` : ''}
+DATA WITH CITATION HANDLES:
+${context.conversationText ? `**CONVERSATIONS** (cite as [MSG-xxxxx]):\n${context.conversationText}\n\n` : ''}
+${context.journalText ? `**JOURNALS** (cite as [JOURNAL-xxxxx][date]):\n${context.journalText}\n\n` : ''}
+${context.moodText ? `**MOODS** (cite as [MOOD-xxxxx][date]):\n${context.moodText}\n\n` : ''}
+${context.factsText ? `**MEMORY FACTS** (cite as [FACT-xxxxx]):\n${context.factsText}\n\n` : ''}
+${context.crossSourceSummary ? `${context.crossSourceSummary}\n\n` : ''}
 
-REQUIREMENTS:
+CRITICAL CITATION REQUIREMENTS:
+1. Each insight MUST explicitly cite ≥2 DIFFERENT source types using citation handles
+2. Valid citation format: [MSG-xxxxx], [JOURNAL-xxxxx], [MOOD-xxxxx], [FACT-xxxxx]
+3. Example: "Pattern confirmed across [MSG-a1b2c3d4], [JOURNAL-e5f6g7h8], [MOOD-i9j0k1l2]"
+4. Insights without proper cross-source citations will be REJECTED
+
+INFERENCE REQUIREMENTS:
 1. Return 8-12 insights as a JSON array of strings
-2. Each insight MUST cite evidence from at least 2 data sources (dates, quotes, patterns)
-3. Go TWO inferential steps deeper - reveal what they DON'T already know
+2. Go TWO inferential steps deeper than source text - reveal what they DON'T already know
+3. NEVER paraphrase or echo their own words - connect dots they haven't connected
 4. Make insights specific, uncomfortable, and undeniable
-5. Use professional frameworks (Schema Therapy, IFS, Attachment Theory)
+5. Use professional frameworks (Schema Therapy, IFS, Attachment Theory, Attachment Patterns)
 
-Return JSON: {"insights": ["insight 1 with evidence", "insight 2 with evidence", ... 8-12 total]}`;
+Return JSON: {"insights": ["insight with [CITE-1], [CITE-2] evidence", ... 8-12 total]}`;
 
     const systemMessage = `You are an unforgiving, world-class personality analyst who has spent 30 years integrating Schema Therapy, Internal Family Systems (IFS), Attachment Theory, evolutionary psychology, psychodynamic defense mechanisms, and developmental trauma research.
 
@@ -594,45 +693,60 @@ Every single insight must make them think "how did you know that?" - not "I alre
     const firstPassResult = this.parseAIResponse(firstPassResponse.choices[0].message.content || "{}");
     const firstPassInsights = firstPassResult.insights || [];
     
-    // STEP 2: Second pass - senior supervisor critique and rewrite (THE NUCLEAR OPTION)
+    // STEP 2: Second pass - senior supervisor critique and rewrite (ENFORCED REJECTION)
     console.log(`[MULTI-PASS] ${sectionName}: Second pass (senior supervisor critique & rewrite)...`);
     
-    const secondPassPrompt = `You are now acting as a senior clinical supervisor who has reviewed thousands of personality analyses and maintains exceptionally high standards.
+    const secondPassPrompt = `You are a ruthless senior clinical supervisor reviewing this first draft for ${sectionName}.
 
-Here was the first draft for ${sectionName}:
+FIRST DRAFT:
 ${JSON.stringify(firstPassInsights, null, 2)}
 
-Your job: Review this draft critically for being too obvious, too echoing, too gentle, or too generic. Then rewrite it following every anti-echo rule with heightened precision.
+AVAILABLE CITATIONS FOR VERIFICATION:
+Messages: ${context.citationMeta?.messageIds?.length || 0} available [MSG-xxxxx]
+Journals: ${context.citationMeta?.journalIds?.length || 0} available [JOURNAL-xxxxx]
+Moods: ${context.citationMeta?.moodIds?.length || 0} available [MOOD-xxxxx]
+Facts: ${context.citationMeta?.factIds?.length || 0} available [FACT-xxxxx]
 
-MANDATORY REJECTION CRITERIA - For EACH insight, check:
-- Is it echoing the user's own words? → GO DEEPER or replace with "Insufficient depth — need more data"
-- Is it comfortable or obvious? → REJECT - replace with "Insufficient depth — need more data"
-- Does it cite evidence from 2+ sources? → If not, REJECT or add triangulated evidence
-- Does it reveal something they DON'T know about themselves? → If not, REJECT
-- Would a therapist be nervous to say this? → If not, it's too soft - REJECT
-- Does it overlap >60% with another insight? → REJECT as duplicate
-- **IS IT WORD SALAD?** → Check for:
-  ❌ Excessive hyphenation (more than 2 per insight) → REJECT and rewrite clearly
-  ❌ Run-on sentences without proper punctuation → REJECT and break into clear sentences
-  ❌ Jargon stacking (more than 2 technical terms in a row) → REJECT and explain in plain terms
-  ❌ Fake hyphenated technical terms like "Safety-regulation-like developmental schemas" → REJECT completely
-  ❌ Unclear subject-verb-object structure → REJECT and rewrite with proper grammar
-  
-  **COHERENCE TEST**: Can you read this aloud without getting confused? If not, it's word salad - REJECT.
+YOUR TASK: Grade each insight using these MANDATORY REJECTION CRITERIA:
 
-CRITICAL: If an insight fails ANY of these tests, you have TWO options:
-1. Replace it with "Insufficient depth — need more data" (if truly unsalvageable)
-2. Rewrite it to be DEVASTATINGLY accurate with proper evidence and depth AND grammatically coherent
+1. **CITATION VERIFICATION**: Does it cite ≥2 DIFFERENT source types with valid handles?
+   - REJECT if missing citations or only 1 source type
+   
+2. **ECHO CHECK**: Does it paraphrase/restate the user's own words?
+   - REJECT if it's just rephrasing what they explicitly said
+   - PASS only if it connects dots they DIDN'T connect
+   
+3. **REVELATION TEST**: Would the user think "how did you know that?" or "I already knew that"?
+   - REJECT if obvious, comfortable, or affirming
+   - PASS only if uncomfortable and non-obvious
+   
+4. **THERAPEUTIC NERVE TEST**: Would a therapist hesitate to say this out loud?
+   - REJECT if too gentle or corporate-coaching-speak
+   - PASS only if genuinely confrontational
+   
+5. **WORD SALAD CHECK**: Is it grammatically coherent with clear sentences?
+   - REJECT if excessive hyphens (>2), run-ons, jargon stacking, or unclear structure
+   - PASS only if readable aloud without confusion
+   
+6. **DUPLICATE CHECK**: Does it overlap >60% with another insight in this list?
+   - REJECT duplicates
 
-You MUST actively reject shallow insights AND word salad. DO NOT just pass them through unchanged.
+FOR EACH INSIGHT:
+- If it PASSES all tests → keep it or strengthen it
+- If it FAILS any test → either REWRITE to meet standards OR mark as "Insufficient depth — need more data"
 
-Return the REWRITTEN analysis as JSON: {"insights": ["rewritten insight 1 OR 'Insufficient depth — need more data'", ...]}
+YOU MUST REJECT AGGRESSIVELY. At least 30-40% of insights should be either rewritten or marked insufficient.
 
-WRITING STANDARD: Every insight must be BRUTAL AND impactful BUT READABLE. Write like a world-class clinical therapist who prioritizes uncomfortable truth over comfort. Use proper sentences with clear structure.
+Return JSON:
+{
+  "insights": ["rewritten insight 1 with [citations]", "Insufficient depth — need more data", ...],
+  "rejectionCount": <number of insights you rejected or rewrote>,
+  "rejectionReasons": ["why insight 3 was rejected", "why insight 7 was rejected", ...]
+}
 
-This is the final quality gate. Be ruthless. Every insight must be devastating, deeply revealing AND coherent, or explicitly marked insufficient.`;
+WRITING STANDARD: Be devastating AND coherent. Write like an unforgiving clinical expert who uses proper sentences, not word salad.`;
 
-    const supervisorMessage = `You are a ruthless senior clinical supervisor who has zero tolerance for bullshit. Your standards are brutal. You reject anything that isn't genuinely revelatory and uncomfortable. You prioritize devastating accuracy over comfort.`;
+    const supervisorMessage = `You are a ruthless senior clinical supervisor who ACTIVELY REJECTS shallow work. Your job is to be the quality gatekeeper who says "NO, this isn't deep enough" at least 30-40% of the time. You are allergic to obviousness, echoing, and word salad. Reject aggressively.`;
 
     const secondPassResponse = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -650,19 +764,81 @@ This is the final quality gate. Be ruthless. Every insight must be devastating, 
 
     const result = this.parseAIResponse(secondPassResponse.choices[0].message.content || "{}");
     const insights = result.insights || [];
+    const rejectionCount = result.rejectionCount || 0;
+    const rejectionReasons = result.rejectionReasons || [];
+    
+    // LOG SUPERVISOR REJECTION METRICS
+    if (rejectionCount > 0) {
+      console.log(`[SUPERVISOR] ${sectionName}: Rejected/rewrote ${rejectionCount}/${firstPassInsights.length} insights (${Math.round(rejectionCount/firstPassInsights.length*100)}%)`);
+      if (rejectionReasons.length > 0) {
+        console.log(`[SUPERVISOR] Rejection reasons:`, rejectionReasons.slice(0, 3).join('; ')); // Log first 3 reasons
+      }
+    } else {
+      console.warn(`[SUPERVISOR] ${sectionName}: WARNING - Supervisor approved all insights without rejection. Quality gate may be too lenient.`);
+    }
+    
+    // VALIDATION: Enforce citation requirements
+    const validatedInsights = this.validateCitations(insights, context.citationMeta);
+    console.log(`[CITATION-VALIDATION] ${sectionName}: ${validatedInsights.valid.length}/${insights.length} insights passed citation check`);
+    if (validatedInsights.failed.length > 0) {
+      console.warn(`[CITATION-VALIDATION] ${sectionName}: Rejected ${validatedInsights.failed.length} insights for insufficient citations:`, validatedInsights.failureReasons.slice(0, 2));
+    }
     
     // QUALITY CONTROL: Remove duplicates within this section using Jaccard similarity
-    const uniqueInsights = this.removeDuplicateInsights(insights);
+    const uniqueInsights = this.removeDuplicateInsights(validatedInsights.valid);
     
-    if (uniqueInsights.length < insights.length) {
-      console.warn(`[MULTI-PASS] ${sectionName}: Removed ${insights.length - uniqueInsights.length} duplicate insights (${uniqueInsights.length} unique)`);
+    if (uniqueInsights.length < validatedInsights.valid.length) {
+      console.warn(`[MULTI-PASS] ${sectionName}: Removed ${validatedInsights.valid.length - uniqueInsights.length} duplicate insights (${uniqueInsights.length} unique)`);
     } else {
       console.log(`[MULTI-PASS] ${sectionName}: Generated ${uniqueInsights.length} unique insights`);
+    }
+    
+    // QUALITY GATE: If too many insights failed validation, warn about quality
+    const passRate = (uniqueInsights.length / insights.length) * 100;
+    if (passRate < 50) {
+      console.warn(`[QUALITY-GATE] ${sectionName}: LOW PASS RATE ${Math.round(passRate)}% - quality gate may need tuning`);
     }
     
     return uniqueInsights;
   }
   
+  // Validate that insights contain proper cross-source citations
+  private validateCitations(insights: string[], citationMeta: any): { valid: string[], failed: string[], failureReasons: string[] } {
+    const valid: string[] = [];
+    const failed: string[] = [];
+    const failureReasons: string[] = [];
+    
+    for (const insight of insights) {
+      // Skip "Insufficient depth" markers - these are explicit admissions of low quality
+      if (typeof insight !== 'string' || insight.includes('Insufficient depth')) {
+        failed.push(insight);
+        failureReasons.push('Marked as insufficient depth');
+        continue;
+      }
+      
+      // Count citation types present
+      const hasMsgCite = /\[MSG-[a-f0-9]{8}\]/.test(insight);
+      const hasJournalCite = /\[JOURNAL-[a-f0-9]{8}\]/.test(insight);
+      const hasMoodCite = /\[MOOD-[a-f0-9]{8}\]/.test(insight);
+      const hasFactCite = /\[FACT-[a-f0-9]{8}\]/.test(insight);
+      
+      const citationTypes = [hasMsgCite, hasJournalCite, hasMoodCite, hasFactCite].filter(Boolean).length;
+      
+      // REQUIRE ≥2 different citation types for cross-source triangulation
+      if (citationTypes >= 2) {
+        valid.push(insight);
+      } else if (citationTypes === 1) {
+        failed.push(insight);
+        failureReasons.push(`Only 1 citation type (need ≥2 for triangulation)`);
+      } else {
+        failed.push(insight);
+        failureReasons.push(`No valid citations found`);
+      }
+    }
+    
+    return { valid, failed, failureReasons };
+  }
+
   // Remove duplicate insights using Jaccard similarity
   private removeDuplicateInsights(insights: string[]): string[] {
     const unique: string[] = [];
