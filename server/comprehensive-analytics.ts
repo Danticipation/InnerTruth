@@ -284,16 +284,17 @@ export class ComprehensiveAnalytics {
       growthLeveragePoint: null
     };
     
-    // Generate only enabled sections in parallel for speed (with retry logic)
-    const sectionPromises = enabledSections.map(async (sectionName) => {
+    // Generate sections SEQUENTIALLY to avoid rate limits (30k tokens/min on free tier)
+    // Parallel generation causes all sections to hit rate limit and fall back to weak prompts
+    console.log('[MULTI-PASS] Generating sections sequentially to avoid rate limits...');
+    for (const sectionName of enabledSections) {
+      console.log(`[MULTI-PASS] Generating ${sectionName}...`);
       const insights = await this.generateSectionWithRetry(sectionName, context);
-      return { sectionName, insights };
-    });
-    
-    const results = await Promise.all(sectionPromises);
-    results.forEach(({ sectionName, insights }) => {
       profile[sectionName] = insights;
-    });
+      
+      // Small delay between sections to respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
     
     // CROSS-SECTION DUPLICATE DETECTION (enforces anti-echo across entire analysis)
     console.log('[MULTI-PASS] Running cross-section duplicate detection...');
@@ -353,25 +354,25 @@ export class ComprehensiveAnalytics {
     facts: MemoryFact[],
     statistics: any
   ) {
-    // ===== EVIDENCE ASSEMBLY (Clean format for natural analysis) =====
+    // ===== EVIDENCE ASSEMBLY (Reduced for free tier rate limits) =====
     
-    // CONVERSATIONS: Recent message exchanges
-    const recentMessages = messages.slice(-100);
+    // CONVERSATIONS: Recent message exchanges (reduced to 50 to save tokens)
+    const recentMessages = messages.slice(-50);
     const conversationText = recentMessages
-      .map(m => `${m.role}: ${m.content}`)
+      .map(m => `${m.role}: ${m.content.slice(0, 500)}`) // Truncate long messages
       .join("\n");
 
-    // JOURNALS: Recent journal entries with dates
-    const recentJournals = journals.slice(-20);
+    // JOURNALS: Recent journal entries with dates (reduced to 10)
+    const recentJournals = journals.slice(-10);
     const journalText = recentJournals
       .map(j => {
         const date = new Date(j.createdAt).toLocaleDateString();
-        return `Journal entry (${date}):\n${j.content}`;
+        return `Journal entry (${date}):\n${j.content.slice(0, 800)}`; // Truncate long entries
       })
       .join("\n\n---\n\n");
 
-    // MOODS: Recent mood entries with context
-    const recentMoods = moods.slice(-30);
+    // MOODS: Recent mood entries with context (reduced to 20)
+    const recentMoods = moods.slice(-20);
     const moodText = recentMoods
       .map(m => {
         const date = new Date(m.createdAt).toLocaleDateString();
@@ -581,24 +582,36 @@ Return JSON:
       factsText: context.factsText ? context.factsText.slice(0, 2000) : ''
     };
     
-    const simplifiedPrompt = `URGENT: Generate exactly 8 brutal psychological insights for ${sectionName}. NO polite language. NO hedging. Direct clinical facts only.
+    const simplifiedPrompt = `Generate exactly 8 brutally honest psychological insights for ${sectionName}. Zero tolerance for therapeutic language.
 
-DATA (trimmed):
-${trimmedContext.conversationText ? `CONVERSATIONS: ${trimmedContext.conversationText}\n\n` : ''}
-${trimmedContext.journalText ? `JOURNALS: ${trimmedContext.journalText}\n\n` : ''}
-${trimmedContext.moodText ? `MOODS: ${trimmedContext.moodText}\n\n` : ''}
-${trimmedContext.factsText ? `FACTS: ${trimmedContext.factsText}\n\n` : ''}
+DATA:
+${trimmedContext.conversationText ? `CONVERSATIONS:\n${trimmedContext.conversationText}\n\n` : ''}
+${trimmedContext.journalText ? `JOURNALS:\n${trimmedContext.journalText}\n\n` : ''}
+${trimmedContext.moodText ? `MOODS:\n${trimmedContext.moodText}\n\n` : ''}
+${trimmedContext.factsText ? `FACTS:\n${trimmedContext.factsText}\n\n` : ''}
 
-REQUIREMENTS:
-1. Exactly 8 insights (no more, no less)
-2. Zero hedging ("might," "perhaps," "could be") - state facts
-3. Zero softening ("understandable," "many people") - be blunt
-4. Each insight must be uncomfortable/revealing
-5. Reference evidence when possible
+TONE REQUIREMENTS (MANDATORY):
+- ZERO hedging: NO "might," "perhaps," "could be," "sometimes," "often"
+- ZERO softening: NO "understandable," "many people," "it's normal," "valid"
+- ZERO reassurance: NO "you're aware," "good that," "strength"
+- State facts like a pathologist reading an autopsy report: direct, clinical, unflinching
+- Goal: devastating truth, not comfortable therapy speak
+- Each insight must make them think "holy shit, how did you know that?"
 
-Return JSON: {"insights": ["insight 1", "insight 2", ... exactly 8 total]}`;
+FORBIDDEN PHRASES (instant failure if used):
+❌ "It sounds like you're feeling..."
+❌ "That must be hard"
+❌ "You're being hard on yourself"
+❌ "Your inner child"
+❌ "Self-care"
+❌ "Growth mindset"
 
-    const simplifiedSystemMessage = `You are a clinical diagnostician delivering findings. State uncomfortable truths like a pathologist reading an autopsy report: direct, factual, unflinching. NO therapy speak. NO reassurance. If you have nothing devastating to say, write "Insufficient data" instead of polite bullshit.`;
+QUALITY STANDARD:
+Every insight must pass the test: "Would a therapist hesitate to say this out loud?" If comfortable or obvious, it's worthless.
+
+Return JSON with exactly 8 insights: {"insights": ["insight 1", "insight 2", ... "insight 8"]}`;
+
+    const simplifiedSystemMessage = `You are an unforgiving clinical diagnostician delivering psychological findings. NO polite hedging. NO therapeutic reassurance. NO Instagram wisdom. State uncomfortable truths like reading a medical diagnosis: factual, direct, devastating. If you have nothing clinically significant to say, write "Insufficient data for meaningful analysis" instead of generic observations.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
