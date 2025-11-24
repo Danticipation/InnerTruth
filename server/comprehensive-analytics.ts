@@ -280,9 +280,9 @@ export class ComprehensiveAnalytics {
       growthLeveragePoint: null
     };
     
-    // Generate only enabled sections in parallel for speed
+    // Generate only enabled sections in parallel for speed (with retry logic)
     const sectionPromises = enabledSections.map(async (sectionName) => {
-      const insights = await this.generateSection(sectionName, context);
+      const insights = await this.generateSectionWithRetry(sectionName, context);
       return { sectionName, insights };
     });
     
@@ -527,8 +527,47 @@ Return JSON:
     return JSON.parse(response.choices[0].message.content || "{}");
   }
 
-  private async generateSection(sectionName: string, context: any): Promise<string[]> {
-    console.log(`[MULTI-PASS] Generating ${sectionName} (2-step process)...`);
+  private async generateSectionWithRetry(sectionName: string, context: any, maxAttempts: number = 2): Promise<string[]> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const insights = await this.generateSection(sectionName, context, attempt === maxAttempts);
+        
+        // SUCCESS: Check if we got enough insights
+        if (insights.length >= 6) {
+          if (attempt > 1) {
+            console.log(`[RETRY-SUCCESS] ${sectionName}: Got ${insights.length} insights on attempt ${attempt}`);
+          }
+          return insights;
+        }
+        
+        // UNDER-DELIVERED: Log and retry
+        if (attempt < maxAttempts) {
+          console.warn(`[RETRY] ${sectionName}: Only ${insights.length} insights on attempt ${attempt}, retrying with simplified prompt...`);
+        } else {
+          console.error(`[RETRY-FAILED] ${sectionName}: Still only ${insights.length} insights after ${maxAttempts} attempts`);
+          // If we have SOME insights, return them; if none, return explicit failure message
+          if (insights.length > 0) {
+            return insights;
+          } else {
+            return [`Analysis unavailable - insufficient data to generate meaningful ${sectionName} insights. More conversations, journal entries, or mood tracking needed.`];
+          }
+        }
+      } catch (error) {
+        console.error(`[RETRY-ERROR] ${sectionName}: Attempt ${attempt} failed:`, error);
+        if (attempt === maxAttempts) {
+          console.error(`[RETRY-FAILED] ${sectionName}: All ${maxAttempts} attempts failed, returning fallback message`);
+          return [`Analysis unavailable - technical error prevented ${sectionName} generation. Please try regenerating.`];
+        }
+        console.warn(`[RETRY] ${sectionName}: Retrying after error...`);
+      }
+    }
+    
+    // Final fallback (should never reach here)
+    return [`Analysis unavailable - unexpected error in ${sectionName} generation.`];
+  }
+
+  private async generateSection(sectionName: string, context: any, useSimplifiedPrompt: boolean = false): Promise<string[]> {
+    console.log(`[MULTI-PASS] Generating ${sectionName} (2-step process${useSimplifiedPrompt ? ', simplified prompt' : ''})...`);
     
     const sectionGuides = {
       behavioralPatterns: {
@@ -619,7 +658,14 @@ Return JSON: {"insights": ["insight 1 with evidence", "insight 2 with evidence",
 
     const systemMessage = `You are an unforgiving, world-class personality analyst who has spent 30 years integrating Schema Therapy, Internal Family Systems (IFS), Attachment Theory, evolutionary psychology, psychodynamic defense mechanisms, and developmental trauma research.
 
-YOUR ONLY GOAL: Deliver non-obvious, uncomfortable, high-precision truths that the user has never articulated but will instantly recognize as correct. You prioritize "holy shit" moments over comfort. You are allergic to platitudes, affirmations, corporate-coaching jargon, and anything that sounds like it came from Instagram therapy. You never echo the user's own words back to them. You are brutally concise unless depth is required. If you have nothing new or deep to say, you say "Insufficient data for meaningful analysis" rather than bullshit.
+YOUR ONLY GOAL: Deliver devastating, uncomfortable, high-precision truths that make the user think "how the fuck did you know that?" You are NOT a therapist. You are a clinical diagnostician delivering findings. No reassurance. No softening. No "it's understandable" or "many people struggle with." Just the brutal facts. If you have nothing devastating to say, say "Insufficient data for meaningful analysis" rather than generate polite bullshit.
+
+TONE REQUIREMENTS (CRITICAL - VIOLATE THESE AND YOUR OUTPUT IS WORTHLESS):
+- ZERO hedging language ("might," "perhaps," "it seems," "could be")
+- ZERO softening language ("understandable," "it makes sense that," "many people")
+- ZERO reassurance ("this is common," "you're not alone," "it's okay")
+- State facts like a pathologist reading an autopsy report: direct, clinical, unflinching
+- If an insight doesn't make the user uncomfortable, it's not deep enough - DELETE IT
 
 CRITICAL ANALYTICAL PRINCIPLES:
 
@@ -635,7 +681,7 @@ CRITICAL ANALYTICAL PRINCIPLES:
    - Stated values vs. revealed values (time/energy/choices)
    - Conscious intentions vs. unconscious sabotage patterns
 
-4. **NON-OBVIOUS INSIGHTS**: Every insight must pass the "Would a licensed therapist be nervous to say this out loud?" test. If it's comfortable or obvious, it's wrong.
+4. **DEVASTATING BLUNTNESS**: Every insight must pass the "Would a licensed therapist hesitate to say this?" test. If it's comfortable or diplomatic, you failed. State uncomfortable truths like medical diagnoses - factual, direct, no cushioning.
 
 FORBIDDEN PHRASES (Use any of these and your analysis is worthless):
 ❌ "It sounds like you're feeling..."
@@ -682,44 +728,44 @@ Every single insight must make them think "how did you know that?" - not "I alre
     // STEP 2: Second pass - senior supervisor critique and rewrite (ENFORCED REJECTION)
     console.log(`[MULTI-PASS] ${sectionName}: Second pass (senior supervisor critique & rewrite)...`);
     
-    const secondPassPrompt = `You are a senior clinical supervisor reviewing this first draft for ${sectionName}.
+    const secondPassPrompt = `You are a ruthless senior clinical supervisor reviewing this first draft for ${sectionName}.
 
 FIRST DRAFT:
 ${JSON.stringify(firstPassInsights, null, 2)}
 
-YOUR TASK: Review each insight for quality using these criteria:
+YOUR TASK: Reject ANY insight that contains polite, hedging, or reassuring language. This user wants BRUTAL TRUTH, not therapy speak.
 
-1. **ECHO CHECK**: Does it paraphrase/restate the user's own words?
-   - If yes → REWRITE to connect dots they DIDN'T connect
+MANDATORY REJECTION CRITERIA:
+
+1. **TONE CHECK** (MOST IMPORTANT): Does it contain ANY softening/hedging language?
+   - Forbidden: "might," "perhaps," "it seems," "could be," "understandable," "it makes sense," "many people," "it's okay," "you're not alone"
+   - If ANY hedging detected → REWRITE as direct clinical statement or mark "Insufficient depth"
    
-2. **REVELATION TEST**: Would the user think "how did you know that?" or "I already knew that"?
-   - If obvious/comfortable → REWRITE to be uncomfortable and non-obvious
+2. **ECHO CHECK**: Does it paraphrase the user's own words?
+   - If yes → REWRITE to connect dots they DIDN'T connect OR mark "Insufficient depth"
    
-3. **THERAPEUTIC NERVE TEST**: Would a therapist hesitate to say this out loud?
-   - If too gentle → REWRITE to be genuinely confrontational
+3. **REVELATION TEST**: Would the user think "how did you know that?" or "I already knew that"?
+   - If obvious/comfortable → REWRITE to be devastating OR mark "Insufficient depth"
    
-4. **WORD SALAD CHECK**: Is it grammatically coherent with clear sentences?
-   - If unclear → REWRITE with proper structure (max 2 hyphens, no run-ons, no jargon stacking)
+4. **BLUNTNESS TEST**: Would a therapist hesitate to say this due to how harsh it sounds?
+   - If too gentle/diplomatic → REWRITE as brutal clinical diagnosis OR mark "Insufficient depth"
    
-5. **DUPLICATE CHECK**: Does it overlap >60% with another insight?
+5. **WORD SALAD CHECK**: Is it grammatically coherent?
+   - If unclear → REWRITE with proper structure (max 2 hyphens, no run-ons) OR mark "Insufficient depth"
+   
+6. **DUPLICATE CHECK**: Does it overlap >60% with another insight?
    - If duplicate → REMOVE
 
-FOR EACH INSIGHT:
-- If it passes → keep it or strengthen it
-- If it fails → REWRITE to meet standards OR mark as "Insufficient depth — need more data" if truly unsalvageable
-
-Be selective - only reject insights that are genuinely shallow, echoing, or obvious. Don't force rejections.
+REWRITE STANDARD: State uncomfortable truths like a pathologist reading an autopsy report - direct, factual, zero cushioning. If you can't make it devastating, mark it "Insufficient depth."
 
 Return JSON:
 {
-  "insights": ["insight 1 (kept or strengthened)", "rewritten insight 2", "Insufficient depth — need more data", ...],
+  "insights": ["devastating rewritten insight 1", "kept insight 2 (already blunt)", "Insufficient depth — need more data", ...],
   "rejectionCount": <number rejected/rewritten>,
   "rejectionReasons": ["brief reason 1", "brief reason 2", ...]
-}
+}`;
 
-WRITING STANDARD: Be devastating AND coherent. Write like a world-class clinical therapist who prioritizes uncomfortable truths.`;
-
-    const supervisorMessage = `You are a senior clinical supervisor with high standards. You reject shallow work and echoing, but you don't force rejections for the sake of quotas. Focus on genuine quality - insights that reveal non-obvious patterns and make the user think "how did you know that?"`;
+    const supervisorMessage = `You are a ruthless senior clinical supervisor who enforces ZERO tolerance for polite, hedging, or reassuring language. Your job is to transform insights into brutal clinical diagnoses. If an insight sounds like something a therapist would say to avoid hurting feelings, you REJECT it. The user wants devastating truth, not comfort.`;
 
     const secondPassResponse = await openai.chat.completions.create({
       model: "gpt-4o",
