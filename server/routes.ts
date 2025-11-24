@@ -488,7 +488,20 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
       console.log('[PERSONALITY-REFLECTION] Generating profile with tier:', analysisTier);
       
       // Generate comprehensive profile with tier
-      const profile = await comprehensiveAnalytics.generatePersonalityProfile(userId, analysisTier);
+      let profile;
+      try {
+        profile = await comprehensiveAnalytics.generatePersonalityProfile(userId, analysisTier);
+      } catch (aiError: any) {
+        // Handle OpenAI-specific errors
+        if (aiError.status === 429 || aiError.code === 'insufficient_quota') {
+          return res.status(429).json({ 
+            error: "OpenAI API quota exceeded. Please check your OpenAI account billing and usage limits at https://platform.openai.com/account/usage",
+            details: "Your OPENAI_API_KEY has exceeded its quota. You may need to add credits or upgrade your plan."
+          });
+        }
+        // Re-throw other errors to be caught by outer handler
+        throw aiError;
+      }
       
       if (!profile) {
         return res.status(400).json({ 

@@ -145,6 +145,10 @@ export class ComprehensiveAnalytics {
       return profile;
     } catch (error) {
       console.error("Error generating comprehensive profile:", error);
+      // Re-throw OpenAI errors so routes can handle them properly
+      if (error && typeof error === 'object' && 'status' in error) {
+        throw error;
+      }
       return null;
     }
   }
@@ -850,7 +854,7 @@ Return JSON:
     }
     
     // QUALITY CONTROL: Remove duplicates and filter out explicit "insufficient" markers
-    const filteredInsights = insights.filter(insight => 
+    const filteredInsights = insights.filter((insight: any) => 
       typeof insight === 'string' && 
       insight.trim().length > 0 &&
       !insight.includes('Insufficient depth')

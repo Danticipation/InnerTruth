@@ -272,6 +272,10 @@ ${reflection.summary}
     const errorMessage = generateMutation.error instanceof Error 
       ? generateMutation.error.message 
       : "Failed to generate personality reflection";
+    
+    // Check if it's an OpenAI quota error
+    const isQuotaError = errorMessage.includes("quota") || errorMessage.includes("429");
+    
     return (
       <div className="min-h-screen bg-background">
         <DashboardNav />
@@ -280,11 +284,25 @@ ${reflection.summary}
             <CardContent className="py-16">
               <div className="text-center space-y-4">
                 <div className="text-destructive text-4xl mb-4">⚠</div>
-                <h2 className="text-2xl font-bold">Error Generating Reflection</h2>
+                <h2 className="text-2xl font-bold">
+                  {isQuotaError ? "OpenAI API Quota Exceeded" : "Error Generating Reflection"}
+                </h2>
                 <p className="text-muted-foreground max-w-md mx-auto">{errorMessage}</p>
-                <p className="text-sm text-muted-foreground">
-                  Make sure you have enough data: conversations, journal entries, and mood entries.
-                </p>
+                {isQuotaError ? (
+                  <div className="text-sm text-muted-foreground space-y-2 max-w-lg mx-auto">
+                    <p>Your OpenAI API key has exceeded its usage quota.</p>
+                    <p className="font-medium">To fix this:</p>
+                    <ol className="text-left list-decimal list-inside space-y-1">
+                      <li>Go to <a href="https://platform.openai.com/account/billing" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">OpenAI Billing</a></li>
+                      <li>Add credits or upgrade your plan</li>
+                      <li>Check your usage at <a href="https://platform.openai.com/account/usage" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">OpenAI Usage</a></li>
+                    </ol>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Make sure you have enough data: conversations, journal entries, and mood entries.
+                  </p>
+                )}
                 <Button 
                   onClick={() => generateMutation.reset()}
                   variant="outline"
