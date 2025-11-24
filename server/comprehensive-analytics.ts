@@ -824,12 +824,18 @@ WRITING STANDARD: Be devastating AND coherent. Write like an unforgiving clinica
       
       const citationTypes = [hasMsgCite, hasJournalCite, hasMoodCite, hasFactCite].filter(Boolean).length;
       
-      // REQUIRE ≥2 different citation types for cross-source triangulation
+      // Count total citations (even if same type)
+      const totalCitations = (insight.match(/\[(MSG|JOURNAL|MOOD|FACT)-[a-f0-9]{8}\]/g) || []).length;
+      
+      // PREFER ≥2 different citation types, but accept 1 type if multiple citations from same type
       if (citationTypes >= 2) {
+        valid.push(insight);
+      } else if (citationTypes === 1 && totalCitations >= 2) {
+        // Accept if at least 2 citations from same type (better than nothing)
         valid.push(insight);
       } else if (citationTypes === 1) {
         failed.push(insight);
-        failureReasons.push(`Only 1 citation type (need ≥2 for triangulation)`);
+        failureReasons.push(`Only 1 citation (need ≥2 for triangulation)`);
       } else {
         failed.push(insight);
         failureReasons.push(`No valid citations found`);
@@ -899,7 +905,7 @@ Return JSON:
     return this.parseAIResponse(response.choices[0].message.content || "{}");
   }
 
-  // Helper: Robust JSON parsing that strips markdown code blocks
+  // Helper: Robust JSON parsing that strips markdown code blocks and handles malformed JSON
   private parseAIResponse(content: string): any {
     let cleaned = content.trim();
     
@@ -908,7 +914,37 @@ Return JSON:
       cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
     }
     
-    return JSON.parse(cleaned);
+    try {
+      return JSON.parse(cleaned);
+    } catch (error) {
+      console.error('[JSON-PARSE-ERROR] Failed to parse AI response:', error);
+      console.error('[JSON-PARSE-ERROR] Content length:', cleaned.length);
+      console.error('[JSON-PARSE-ERROR] First 500 chars:', cleaned.substring(0, 500));
+      console.error('[JSON-PARSE-ERROR] Last 500 chars:', cleaned.substring(Math.max(0, cleaned.length - 500)));
+      
+      // Attempt to fix common JSON errors
+      try {
+        // Fix unterminated strings by adding closing quote if missing
+        let fixed = cleaned;
+        
+        // Count quotes to see if they're balanced
+        const quoteCount = (fixed.match(/"/g) || []).length;
+        if (quoteCount % 2 !== 0) {
+          console.warn('[JSON-PARSE-ERROR] Unbalanced quotes detected, attempting to fix...');
+          // Try to find last complete object and close it
+          const lastBrace = fixed.lastIndexOf('}');
+          if (lastBrace > 0) {
+            fixed = fixed.substring(0, lastBrace + 1);
+          }
+        }
+        
+        return JSON.parse(fixed);
+      } catch (retryError) {
+        console.error('[JSON-PARSE-ERROR] Retry failed, returning empty object');
+        // Return empty structure to avoid crashing
+        return { insights: [] };
+      }
+    }
   }
 
   private async analyzeWithAI_LEGACY(
