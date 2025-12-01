@@ -30,7 +30,7 @@ The design utilizes React, TypeScript, Tailwind CSS, and Shadcn UI for a profess
   - **Free Tier**: 2 sections (Behavioral Patterns, Growth Areas) - basic insights
   - **Standard Tier**: 6 sections (adds Emotional Patterns, Relationship Dynamics, Strengths, Blind Spots) - deep dive analysis
   - **Premium Tier**: 9 sections (all Standard + Coping Mechanisms, Values & Beliefs, Therapeutic Insights) + Holy Shit Moment + Growth Leverage Point - devastating truth
-- **Multi-Pass Generation System**: Instead of single monolithic AI call, generates each of the 9 sections separately with focused prompts. Each section gets 8-12 insights using section-specific analytical formats (e.g., Behavioral Patterns use [TRIGGER] → [ACTION] → [CONSEQUENCE] format). Sections are generated in parallel for speed (~2-3 min total). Premium tier includes final "Holy Shit Moment" synthesis.
+- **Multi-Pass Generation System**: Instead of single monolithic AI call, generates each of the 9 sections separately with focused prompts. Each section gets 8-12 insights using section-specific analytical formats (e.g., Behavioral Patterns use [TRIGGER] → [ACTION] → [CONSEQUENCE] format). **Sections are generated sequentially** (not parallel) to avoid OpenAI rate limits on free tier accounts (30k tokens/min). Premium tier includes final "Holy Shit Moment" synthesis.
 - **Senior AI Quality Controls** (Complete Formula Implementation): Each section uses an "unforgiving, world-class personality analyst" system message with strict analytical principles:
   - **Persona Enforcement**: "If you have nothing new or deep to say, you say 'Insufficient data for meaningful analysis' rather than bullshit"
   - **Triangulation Mandatory**: Every insight must cite evidence from 2+ data sources
@@ -75,6 +75,29 @@ The system enforces strict per-user data isolation for all sensitive information
 - **Fixed JSON parsing bugs**: Added robust markdown stripping in memory-service.ts and comprehensive-analytics.ts to handle GPT-4o wrapping JSON in ```json code blocks (prevents SyntaxError during fact extraction)
 - **Trade-off accepted**: User pays directly for OpenAI API usage (~$0.01-0.03 per analysis) in exchange for complete control over prompt content without corporate filtering
 - **Anti-word-salad rules preserved**: Max 2 hyphens per insight, clear sentence structure, no jargon stacking - maintained regardless of API source
+
+### November 24, 2025 - Rate Limit Fix & Sequential Generation
+- **Critical bug fix: Parallel generation caused rate limit cascade**:
+  - Problem: Generating 9 sections in parallel (~18k tokens each) instantly exceeded OpenAI's 30k tokens/min limit on free tier
+  - All sections were falling back to weak simplified prompts, producing generic/surface-level analysis
+  - Blind spots and other sections were failing completely (returning fallback messages)
+- **Switched to sequential generation**:
+  - Sections now generate one at a time with 1-second delays between each
+  - Full two-pass brutal prompt system now works correctly without rate limits
+  - Trade-off: Slower (~5-7 minutes) but much higher quality analysis
+- **Reduced token usage for rate limit compliance**:
+  - Reduced context from 100 messages → 50 messages
+  - Reduced from 20 journals → 10 journals  
+  - Truncated long messages to 500 chars, journals to 800 chars
+  - Fits within 30k tokens/min rate limit
+- **Improved OpenAI error handling**:
+  - Quota exceeded errors (429) now properly detected and displayed with helpful instructions
+  - Frontend shows specific "OpenAI API Quota Exceeded" message with links to billing/usage pages
+  - No longer misreports quota errors as "not enough data"
+- **Enhanced simplified prompt (fallback quality)**:
+  - Simplified prompt now includes full brutal tone requirements
+  - Forbidden phrases list prevents therapy clichés even on retry path
+  - "Pathologist reading autopsy report" tone enforced at all prompt levels
 
 ### November 24, 2025 - Retry Logic & Brutal Tone Enforcement
 - **Rolled back citation enforcement system**: Removed citation handles and cross-source triangulation requirements that broke GPT-4o and produced surface-level analysis
