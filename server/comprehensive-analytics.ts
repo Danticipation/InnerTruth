@@ -94,8 +94,15 @@ const FEW_SHOT_EXAMPLES = {
 };
 
 export class ComprehensiveAnalytics {
-  async generatePersonalityProfile(userId: string, tier: AnalysisTier = 'free'): Promise<ComprehensiveProfile | null> {
+  async generatePersonalityProfile(
+    userId: string, 
+    tier: AnalysisTier = 'free',
+    onProgress?: (progress: number, currentSection: string) => Promise<void>
+  ): Promise<ComprehensiveProfile | null> {
     try {
+      // Report initial progress
+      if (onProgress) await onProgress(5, 'Gathering your data...');
+      
       // Gather ALL data sources
       const conversations = await storage.getConversationsByUserId(userId);
       const journalEntries = await storage.getJournalEntriesByUserId(userId);
@@ -108,6 +115,8 @@ export class ComprehensiveAnalytics {
       console.log('[COMPREHENSIVE-ANALYTICS] Journal entries:', journalEntries.length);
       console.log('[COMPREHENSIVE-ANALYTICS] Mood entries:', moodEntries.length);
       console.log('[COMPREHENSIVE-ANALYTICS] Memory facts:', memoryFacts.length);
+      
+      if (onProgress) await onProgress(10, 'Processing conversations...');
       
       // Collect all messages from conversations
       let allMessages: Message[] = [];
@@ -132,6 +141,8 @@ export class ComprehensiveAnalytics {
         return null;
       }
 
+      if (onProgress) await onProgress(15, 'Starting deep analysis...');
+
       // Prepare comprehensive context for AI analysis using multi-pass generation
       const profile = await this.analyzeWithMultiPass(
         allMessages,
@@ -139,7 +150,8 @@ export class ComprehensiveAnalytics {
         moodEntries,
         memoryFacts,
         statistics,
-        tier
+        tier,
+        onProgress
       );
 
       return profile;
@@ -253,12 +265,15 @@ export class ComprehensiveAnalytics {
     moods: MoodEntry[],
     facts: MemoryFact[],
     statistics: any,
-    tier: AnalysisTier
+    tier: AnalysisTier,
+    onProgress?: (progress: number, currentSection: string) => Promise<void>
   ): Promise<ComprehensiveProfile> {
     console.log(`[MULTI-PASS] Starting ${TIER_CONFIG[tier].name} analysis (${TIER_CONFIG[tier].sections.length} sections)...`);
     
     // Prepare shared context for all sections
     const context = this.prepareAnalysisContext(messages, journals, moods, facts, statistics);
+    
+    if (onProgress) await onProgress(20, 'Analyzing core personality traits...');
     
     // Generate core traits and summary first (always included)
     const coreAnalysis = await this.generateCoreAnalysis(context);
@@ -284,16 +299,61 @@ export class ComprehensiveAnalytics {
       growthLeveragePoint: null
     };
     
+    // Section display names for progress UI
+    const sectionDisplayNames: Record<string, string> = {
+      behavioralPatterns: 'Behavioral Patterns',
+      emotionalPatterns: 'Emotional Patterns',
+      relationshipDynamics: 'Relationship Dynamics',
+      copingMechanisms: 'Coping Mechanisms',
+      growthAreas: 'Growth Areas',
+      strengths: 'Strengths',
+      blindSpots: 'Blind Spots',
+      valuesAndBeliefs: 'Values & Beliefs',
+      therapeuticInsights: 'Therapeutic Insights'
+    };
+    
     // Generate sections SEQUENTIALLY to avoid rate limits (30k tokens/min on free tier)
     // Parallel generation causes all sections to hit rate limit and fall back to weak prompts
     console.log('[MULTI-PASS] Generating sections sequentially to avoid rate limits...');
-    for (const sectionName of enabledSections) {
+    
+    const totalSections = enabledSections.length;
+    let failedSections = 0;
+    const failedSectionNames: string[] = [];
+    
+    for (let i = 0; i < enabledSections.length; i++) {
+      const sectionName = enabledSections[i];
+      const displayName = sectionDisplayNames[sectionName] || sectionName;
+      
+      // Progress: 25-85% range for section generation
+      const progressPercent = 25 + Math.round((i / totalSections) * 60);
+      if (onProgress) await onProgress(progressPercent, `Analyzing ${displayName}...`);
+      
       console.log(`[MULTI-PASS] Generating ${sectionName}...`);
       const insights = await this.generateSectionWithRetry(sectionName, context);
       profile[sectionName] = insights;
       
+      // Track failures - section is considered failed if it only has a fallback message
+      const isFailed = insights.length === 1 && insights[0].startsWith('Analysis unavailable');
+      if (isFailed) {
+        failedSections++;
+        failedSectionNames.push(displayName);
+        console.error(`[MULTI-PASS] Section ${sectionName} FAILED - added to failure count`);
+      }
+      
       // Small delay between sections to respect rate limits
       await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Quality check: If more than half of sections failed, throw error
+    const failureThreshold = Math.ceil(totalSections / 2);
+    if (failedSections >= failureThreshold) {
+      const errorMsg = `Too many sections failed to generate (${failedSections}/${totalSections}): ${failedSectionNames.join(', ')}. This may indicate an API issue or insufficient data.`;
+      console.error(`[MULTI-PASS] ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+    
+    if (failedSections > 0) {
+      console.warn(`[MULTI-PASS] ${failedSections}/${totalSections} sections had issues but continuing with partial analysis`);
     }
     
     // CROSS-SECTION DUPLICATE DETECTION (enforces anti-echo across entire analysis)
@@ -338,11 +398,13 @@ export class ComprehensiveAnalytics {
     
     // Generate holy shit moment and leverage point for premium tier
     if (TIER_CONFIG[tier].includesHolyShit) {
+      if (onProgress) await onProgress(90, 'Synthesizing your "Holy Shit" moment...');
       const holyShit = await this.generateHolyShitMoment(context, profile);
       profile.holyShitMoment = holyShit.holyShitMoment;
       profile.growthLeveragePoint = holyShit.growthLeveragePoint;
     }
     
+    if (onProgress) await onProgress(95, 'Finalizing analysis...');
     console.log('[MULTI-PASS] Analysis complete!');
     return profile as ComprehensiveProfile;
   }

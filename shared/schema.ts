@@ -104,17 +104,21 @@ export const personalityReflections = pgTable("personality_reflections", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   tier: text("tier").notNull().default('free'), // free, standard, premium
-  summary: text("summary").notNull(),
-  coreTraits: jsonb("core_traits").notNull(),
-  behavioralPatterns: text("behavioral_patterns").array().notNull(),
-  emotionalPatterns: text("emotional_patterns").array().notNull(),
-  relationshipDynamics: text("relationship_dynamics").array().notNull(),
-  copingMechanisms: text("coping_mechanisms").array().notNull(),
-  growthAreas: text("growth_areas").array().notNull(),
-  strengths: text("strengths").array().notNull(),
-  blindSpots: text("blind_spots").array().notNull(),
-  valuesAndBeliefs: text("values_and_beliefs").array().notNull(),
-  therapeuticInsights: text("therapeutic_insights").array().notNull(),
+  status: text("status").notNull().default('pending'), // pending, processing, completed, failed
+  progress: integer("progress").notNull().default(0), // 0-100 percentage
+  currentSection: text("current_section"), // which section is being generated
+  errorMessage: text("error_message"), // error details if failed
+  summary: text("summary").notNull().default(''),
+  coreTraits: jsonb("core_traits").notNull().default({}),
+  behavioralPatterns: text("behavioral_patterns").array().notNull().default([]),
+  emotionalPatterns: text("emotional_patterns").array().notNull().default([]),
+  relationshipDynamics: text("relationship_dynamics").array().notNull().default([]),
+  copingMechanisms: text("coping_mechanisms").array().notNull().default([]),
+  growthAreas: text("growth_areas").array().notNull().default([]),
+  strengths: text("strengths").array().notNull().default([]),
+  blindSpots: text("blind_spots").array().notNull().default([]),
+  valuesAndBeliefs: text("values_and_beliefs").array().notNull().default([]),
+  therapeuticInsights: text("therapeutic_insights").array().notNull().default([]),
   holyShitMoment: text("holy_shit_moment"),
   growthLeveragePoint: text("growth_leverage_point"),
   statistics: jsonb("statistics"),

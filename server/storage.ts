@@ -39,6 +39,9 @@ export interface IStorage {
   
   createPersonalityReflection(reflection: InsertPersonalityReflection & { userId: string }): Promise<PersonalityReflection>;
   getLatestPersonalityReflection(userId: string): Promise<PersonalityReflection | undefined>;
+  getPersonalityReflection(id: string): Promise<PersonalityReflection | undefined>;
+  updatePersonalityReflection(id: string, updates: Partial<PersonalityReflection>): Promise<PersonalityReflection>;
+  getActivePersonalityReflection(userId: string): Promise<PersonalityReflection | undefined>;
   
   // Category tracking operations
   selectCategory(data: InsertUserSelectedCategory): Promise<UserSelectedCategory>;
@@ -227,6 +230,18 @@ export class MemStorage implements IStorage {
   }
 
   async getLatestPersonalityReflection(userId: string): Promise<PersonalityReflection | undefined> {
+    return undefined;
+  }
+
+  async getPersonalityReflection(id: string): Promise<PersonalityReflection | undefined> {
+    return undefined;
+  }
+
+  async updatePersonalityReflection(id: string, updates: Partial<PersonalityReflection>): Promise<PersonalityReflection> {
+    throw new Error("Personality reflections not supported in MemStorage");
+  }
+
+  async getActivePersonalityReflection(userId: string): Promise<PersonalityReflection | undefined> {
     return undefined;
   }
 
@@ -423,6 +438,38 @@ export class PostgresStorage implements IStorage {
   async getLatestPersonalityReflection(userId: string): Promise<PersonalityReflection | undefined> {
     const result = await db.select().from(personalityReflections)
       .where(eq(personalityReflections.userId, userId))
+      .orderBy(desc(personalityReflections.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async getPersonalityReflection(id: string): Promise<PersonalityReflection | undefined> {
+    const result = await db.select().from(personalityReflections)
+      .where(eq(personalityReflections.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async updatePersonalityReflection(id: string, updates: Partial<PersonalityReflection>): Promise<PersonalityReflection> {
+    const result = await db
+      .update(personalityReflections)
+      .set(updates)
+      .where(eq(personalityReflections.id, id))
+      .returning();
+    
+    if (!result[0]) {
+      throw new Error("Personality reflection not found");
+    }
+    return result[0];
+  }
+
+  async getActivePersonalityReflection(userId: string): Promise<PersonalityReflection | undefined> {
+    // Find any reflection that is still pending or processing
+    const result = await db.select().from(personalityReflections)
+      .where(and(
+        eq(personalityReflections.userId, userId),
+        drizzleSql`${personalityReflections.status} IN ('pending', 'processing')`
+      ))
       .orderBy(desc(personalityReflections.createdAt))
       .limit(1);
     return result[0];

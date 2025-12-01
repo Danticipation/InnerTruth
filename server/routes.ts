@@ -469,50 +469,45 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
     }
   });
 
-  // Comprehensive personality reflection endpoint with tier support
-  app.post("/api/personality-reflection", isAuthenticated, async (req: any, res) => {
+  // Background job processor for personality reflection generation
+  async function processPersonalityReflection(reflectionId: string, userId: string, tier: 'free' | 'standard' | 'premium') {
+    console.log('[PERSONALITY-REFLECTION] Background job started:', { reflectionId, userId, tier });
+    
     try {
-      const userId = req.user.claims.sub;
-      const { tier } = req.body as { tier?: 'free' | 'standard' | 'premium' };
+      // Update status to processing
+      await storage.updatePersonalityReflection(reflectionId, {
+        status: 'processing',
+        progress: 5,
+        currentSection: 'Initializing analysis...'
+      });
       
-      console.log('[PERSONALITY-REFLECTION] Request received:', { userId, requestedTier: tier, body: req.body });
-      
-      // Default to free tier if not specified
-      const analysisTier = tier || 'free';
-      
-      // Validate tier
-      if (!['free', 'standard', 'premium'].includes(analysisTier)) {
-        return res.status(400).json({ error: "Invalid tier. Must be 'free', 'standard', or 'premium'" });
-      }
-      
-      console.log('[PERSONALITY-REFLECTION] Generating profile with tier:', analysisTier);
-      
-      // Generate comprehensive profile with tier
-      let profile;
-      try {
-        profile = await comprehensiveAnalytics.generatePersonalityProfile(userId, analysisTier);
-      } catch (aiError: any) {
-        // Handle OpenAI-specific errors
-        if (aiError.status === 429 || aiError.code === 'insufficient_quota') {
-          return res.status(429).json({ 
-            error: "OpenAI API quota exceeded. Please check your OpenAI account billing and usage limits at https://platform.openai.com/account/usage",
-            details: "Your OPENAI_API_KEY has exceeded its quota. You may need to add credits or upgrade your plan."
+      // Generate comprehensive profile with tier and progress callback
+      const profile = await comprehensiveAnalytics.generatePersonalityProfile(
+        userId, 
+        tier,
+        async (progress: number, currentSection: string) => {
+          // Update progress in database
+          await storage.updatePersonalityReflection(reflectionId, {
+            progress,
+            currentSection
           });
         }
-        // Re-throw other errors to be caught by outer handler
-        throw aiError;
-      }
+      );
       
       if (!profile) {
-        return res.status(400).json({ 
-          error: "Not enough data for comprehensive analysis. Continue journaling, chatting, and tracking moods to build your profile." 
+        await storage.updatePersonalityReflection(reflectionId, {
+          status: 'failed',
+          errorMessage: 'Not enough data for comprehensive analysis. Continue journaling, chatting, and tracking moods to build your profile.',
+          progress: 0
         });
+        return;
       }
-
-      // Save the reflection (ensure all arrays default to [] for NOT NULL constraints)
-      const reflection = await storage.createPersonalityReflection({
-        userId,
-        tier: analysisTier,
+      
+      // Update with completed analysis
+      await storage.updatePersonalityReflection(reflectionId, {
+        status: 'completed',
+        progress: 100,
+        currentSection: null,
         summary: profile.summary,
         coreTraits: profile.coreTraits,
         behavioralPatterns: profile.behavioralPatterns || [],
@@ -528,14 +523,113 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
         growthLeveragePoint: profile.growthLeveragePoint || null,
         statistics: profile.statistics,
       });
-
-      res.json(reflection);
+      
+      console.log('[PERSONALITY-REFLECTION] Background job completed:', reflectionId);
+      
     } catch (error: any) {
-      console.error("Error generating personality reflection:", error);
+      console.error('[PERSONALITY-REFLECTION] Background job failed:', error);
+      
+      let errorMessage = error.message || 'Unknown error occurred';
+      
+      // Handle OpenAI-specific errors
+      if (error.status === 429 || error.code === 'insufficient_quota') {
+        errorMessage = 'OpenAI API quota exceeded. Please check your OpenAI account billing and usage limits.';
+      }
+      
+      await storage.updatePersonalityReflection(reflectionId, {
+        status: 'failed',
+        errorMessage,
+        progress: 0
+      });
+    }
+  }
+
+  // Comprehensive personality reflection endpoint with async job support
+  app.post("/api/personality-reflection", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tier } = req.body as { tier?: 'free' | 'standard' | 'premium' };
+      
+      console.log('[PERSONALITY-REFLECTION] Request received:', { userId, requestedTier: tier });
+      
+      // Default to free tier if not specified
+      const analysisTier = tier || 'free';
+      
+      // Validate tier
+      if (!['free', 'standard', 'premium'].includes(analysisTier)) {
+        return res.status(400).json({ error: "Invalid tier. Must be 'free', 'standard', or 'premium'" });
+      }
+      
+      // Check if there's already an active generation for this user (per-user lock)
+      const activeReflection = await storage.getActivePersonalityReflection(userId);
+      if (activeReflection) {
+        console.log('[PERSONALITY-REFLECTION] Active job found, returning existing:', activeReflection.id);
+        return res.json(activeReflection);
+      }
+      
+      // Create a pending reflection record
+      const reflection = await storage.createPersonalityReflection({
+        userId,
+        tier: analysisTier,
+        status: 'pending',
+        progress: 0,
+        currentSection: 'Queued for processing...',
+        summary: '',
+        coreTraits: {},
+        behavioralPatterns: [],
+        emotionalPatterns: [],
+        relationshipDynamics: [],
+        copingMechanisms: [],
+        growthAreas: [],
+        strengths: [],
+        blindSpots: [],
+        valuesAndBeliefs: [],
+        therapeuticInsights: [],
+        holyShitMoment: null,
+        growthLeveragePoint: null,
+        statistics: null,
+      });
+      
+      console.log('[PERSONALITY-REFLECTION] Created pending job:', reflection.id);
+      
+      // Kick off background processing (don't await - fire and forget)
+      processPersonalityReflection(reflection.id, userId, analysisTier).catch(err => {
+        console.error('[PERSONALITY-REFLECTION] Background job error:', err);
+      });
+      
+      // Return the pending reflection immediately
+      res.json(reflection);
+      
+    } catch (error: any) {
+      console.error("Error creating personality reflection job:", error);
       res.status(500).json({ error: error.message });
     }
   });
 
+  // Get personality reflection by ID (for polling)
+  app.get("/api/personality-reflection/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reflectionId = req.params.id;
+      
+      const reflection = await storage.getPersonalityReflection(reflectionId);
+      
+      if (!reflection) {
+        return res.status(404).json({ error: "Personality reflection not found." });
+      }
+      
+      // Verify ownership
+      if (reflection.userId !== userId) {
+        return res.status(403).json({ error: "Access denied." });
+      }
+      
+      res.json(reflection);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get latest personality reflection (completed only)
   app.get("/api/personality-reflection", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

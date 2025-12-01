@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardNav } from "@/components/DashboardNav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,16 @@ import { useToast } from "@/hooks/use-toast";
 import { stripMarkdownForSpeech } from "@/lib/utils";
 
 type AnalysisTier = 'free' | 'standard' | 'premium';
+type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 type PersonalityReflection = {
   id: string;
   userId: string;
   tier: AnalysisTier;
+  status: JobStatus;
+  progress: number;
+  currentSection?: string | null;
+  errorMessage?: string | null;
   summary: string;
   coreTraits: {
     big5: {
@@ -53,7 +58,7 @@ type PersonalityReflection = {
     mostCommonEmotions: string[];
     mostActiveCategories: string[];
     engagementScore: number;
-  };
+  } | null;
   createdAt: Date;
 };
 
@@ -165,11 +170,46 @@ function isSectionEnabled(sectionName: string, tier: AnalysisTier): boolean {
 export default function PersonalityReflection() {
   const [playingSection, setPlayingSection] = useState<string | null>(null);
   const [selectedTier, setSelectedTier] = useState<AnalysisTier>('free');
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Fetch the latest completed reflection
   const { data: reflection, isLoading, error } = useQuery<PersonalityReflection>({
     queryKey: ["/api/personality-reflection"],
   });
+
+  // Poll for job status when we have an active job
+  const { data: jobStatus } = useQuery<PersonalityReflection>({
+    queryKey: ["/api/personality-reflection", activeJobId],
+    enabled: !!activeJobId,
+    refetchInterval: (query) => {
+      const data = query.state.data as PersonalityReflection | undefined;
+      // Stop polling when job is done
+      if (data?.status === 'completed' || data?.status === 'failed') {
+        return false;
+      }
+      return 2000; // Poll every 2 seconds while processing
+    },
+  });
+
+  // Handle job completion
+  useEffect(() => {
+    if (jobStatus?.status === 'completed') {
+      setActiveJobId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/personality-reflection"] });
+      toast({
+        title: "Analysis Complete",
+        description: "Your personality reflection is ready!",
+      });
+    } else if (jobStatus?.status === 'failed') {
+      setActiveJobId(null);
+      toast({
+        title: "Analysis Failed",
+        description: jobStatus.errorMessage || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [jobStatus?.status, jobStatus?.errorMessage, toast]);
 
   const { speak, stop: stopSpeaking, isSpeaking } = useTextToSpeech({
     onStart: () => {
@@ -189,13 +229,25 @@ export default function PersonalityReflection() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("POST", "/api/personality-reflection", { tier: selectedTier });
+    mutationFn: async (): Promise<PersonalityReflection> => {
+      const response = await apiRequest("POST", "/api/personality-reflection", { tier: selectedTier });
+      return response.json() as Promise<PersonalityReflection>;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/personality-reflection"] });
+    onSuccess: (data: PersonalityReflection) => {
+      // If job is pending or processing, start polling
+      if (data.status === 'pending' || data.status === 'processing') {
+        setActiveJobId(data.id);
+      } else if (data.status === 'completed') {
+        queryClient.invalidateQueries({ queryKey: ["/api/personality-reflection"] });
+      }
     },
   });
+
+  // Check if there's an active job from the reflection data
+  // Note: When activeJobId is just set, jobStatus might not be loaded yet, so we also check for that case
+  const isJobProcessing = activeJobId && (!jobStatus || jobStatus?.status === 'pending' || jobStatus?.status === 'processing');
+  const jobProgress = jobStatus?.progress || 0;
+  const currentSection = jobStatus?.currentSection || 'Starting analysis...';
 
   const handlePlaySection = (sectionName: string, text: string) => {
     // If this section is already playing, stop it
@@ -320,7 +372,12 @@ ${reflection.summary}
     );
   }
 
-  if (!reflection && !generateMutation.isPending) {
+  // Show empty state if no reflection or if last reflection failed/is incomplete
+  const showEmptyState = !reflection || 
+    (reflection.status === 'failed') || 
+    (!reflection.summary && reflection.status === 'completed');
+  
+  if (showEmptyState && !generateMutation.isPending && !isJobProcessing) {
     return (
       <div className="min-h-screen bg-background">
         <DashboardNav />
@@ -416,20 +473,34 @@ ${reflection.summary}
     );
   }
 
-  if (generateMutation.isPending) {
+  if (generateMutation.isPending || isJobProcessing) {
     return (
       <div className="min-h-screen bg-background">
         <DashboardNav />
         <main className="max-w-5xl mx-auto px-6 py-8">
           <Card>
             <CardContent className="py-16">
-              <div className="text-center space-y-4">
-                <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto" />
+              <div className="text-center space-y-6">
+                <Brain className="h-16 w-16 text-primary mx-auto animate-pulse" />
                 <h2 className="text-2xl font-bold">Analyzing Your Personality...</h2>
+                
+                {/* Progress bar */}
+                <div className="max-w-md mx-auto space-y-3">
+                  <Progress value={jobProgress} className="h-3" />
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>{currentSection}</span>
+                    <span>{jobProgress}%</span>
+                  </div>
+                </div>
+                
                 <p className="text-muted-foreground max-w-md mx-auto">
                   Using advanced AI to analyze all your conversations, journals, moods, and memories. 
-                  This may take 2-3 minutes to complete a comprehensive psychological analysis.
+                  This may take 3-5 minutes to complete a comprehensive psychological analysis.
                 </p>
+                
+                <div className="text-xs text-muted-foreground">
+                  Generating {TIER_CONFIG[selectedTier].sections.length} sections sequentially to ensure high-quality analysis
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -596,25 +667,25 @@ ${reflection.summary}
           <StatCard 
             icon={Brain}
             label="Engagement Score"
-            value={`${reflection.statistics.engagementScore}/100`}
+            value={`${reflection.statistics?.engagementScore || 0}/100`}
             description="Your interaction depth"
           />
           <StatCard 
             icon={TrendingUp}
             label="Journal Streak"
-            value={`${reflection.statistics.journalStreak} days`}
+            value={`${reflection.statistics?.journalStreak || 0} days`}
             description="Consecutive days"
           />
           <StatCard 
             icon={Heart}
             label="Avg Mood"
-            value={reflection.statistics.averageMoodScore.toFixed(1)}
+            value={(reflection.statistics?.averageMoodScore || 0).toFixed(1)}
             description="Out of 10"
           />
           <StatCard 
             icon={Lightbulb}
             label="Memory Facts"
-            value={reflection.statistics.totalMemoryFacts}
+            value={reflection.statistics?.totalMemoryFacts || 0}
             description="Extracted insights"
           />
         </div>
@@ -1109,22 +1180,22 @@ ${reflection.summary}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
               <div>
                 <p className="font-semibold mb-1">Conversations</p>
-                <p className="text-muted-foreground">{reflection.statistics.totalConversations} total ({reflection.statistics.totalMessages} messages)</p>
+                <p className="text-muted-foreground">{reflection.statistics?.totalConversations || 0} total ({reflection.statistics?.totalMessages || 0} messages)</p>
               </div>
               <div>
                 <p className="font-semibold mb-1">Journal Entries</p>
-                <p className="text-muted-foreground">{reflection.statistics.totalJournalEntries} total</p>
+                <p className="text-muted-foreground">{reflection.statistics?.totalJournalEntries || 0} total</p>
               </div>
               <div>
                 <p className="font-semibold mb-1">Mood Entries</p>
-                <p className="text-muted-foreground">{reflection.statistics.totalMoodEntries} total</p>
+                <p className="text-muted-foreground">{reflection.statistics?.totalMoodEntries || 0} total</p>
               </div>
               <div>
                 <p className="font-semibold mb-1">Memory Facts</p>
-                <p className="text-muted-foreground">{reflection.statistics.totalMemoryFacts} extracted</p>
+                <p className="text-muted-foreground">{reflection.statistics?.totalMemoryFacts || 0} extracted</p>
               </div>
             </div>
-            {reflection.statistics.mostCommonEmotions.length > 0 && (
+            {reflection.statistics?.mostCommonEmotions && reflection.statistics.mostCommonEmotions.length > 0 && (
               <div className="mt-4 pt-4 border-t">
                 <p className="text-xs font-semibold mb-2">Most Common Emotions</p>
                 <div className="flex flex-wrap gap-1">
