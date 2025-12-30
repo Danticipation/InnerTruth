@@ -1,7 +1,7 @@
-# Mirror - AI Personality Analyzer
+# InnerTruth - AI Personality Analyzer
 
 ## Overview
-Mirror is an AI-powered personality analysis application designed to provide in-depth insights into user personality through conversational interactions and journal entries. Its primary goal is to enhance self-awareness and personal growth by identifying personality traits, blind spots, and opportunities for development through comprehensive AI analysis.
+InnerTruth is an AI-powered personality analysis application designed to provide in-depth insights into user personality through conversational interactions and journal entries. Its primary goal is to enhance self-awareness and personal growth by identifying personality traits, blind spots, and opportunities for development through comprehensive AI analysis.
 
 ## User Preferences
 I want iterative development.
