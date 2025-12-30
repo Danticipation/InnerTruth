@@ -1,9 +1,7 @@
-
-
-# Mirror - AI Personality Analyzer
+# InnerTruth - AI Personality Analyzer
 
 ## Overview
-Mirror is an AI-powered personality analysis application designed to provide in-depth insights into user personality through conversational interactions and journal entries. Its primary goal is to enhance self-awareness and personal growth by identifying personality traits, blind spots, and opportunities for development through comprehensive AI analysis.
+InnerTruth is an AI-powered personality analysis application designed to provide in-depth insights into user personality through conversational interactions and journal entries. Its primary goal is to enhance self-awareness and personal growth by identifying personality traits, blind spots, and opportunities for development through comprehensive AI analysis.
 
 ## User Preferences
 I want iterative development.
@@ -55,67 +53,3 @@ The system enforces strict per-user data isolation. AI analysis prioritizes "hol
 - **Backend Framework**: Express.js
 - **ORM**: Drizzle ORM
 - **State Management**: TanStack Query
-
-modules = ["nodejs-20", "web", "postgresql-16"]
-run = "npm run dev"
-hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
-
-[nix]
-channel = "stable-24_05"
-
-[deployment]
-deploymentTarget = "autoscale"
-build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
-
-[[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
-localPort = 33383
-externalPort = 3000
-
-[[ports]]
-localPort = 33465
-externalPort = 5000
-
-[[ports]]
-localPort = 34019
-externalPort = 3001
-
-[[ports]]
-localPort = 36215
-externalPort = 3003
-
-[[ports]]
-localPort = 41413
-externalPort = 3002
-
-[[ports]]
-localPort = 42671
-externalPort = 4200
-
-[env]
-PORT = "5000"
-
-[workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev"
-waitForPort = 5000
