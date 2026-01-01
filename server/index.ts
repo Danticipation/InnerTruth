@@ -1,77 +1,120 @@
-import 'dotenv/config';
-import express, { type Request, Response, NextFunction } from "express";
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import { createServer } from "http";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
+/**
+ * Express entrypoint.
+ * - Enables CORS for local Vite dev server (5173) + optional env override.
+ * - Captures rawBody for any webhook-style routes that may need it.
+ * - Registers API routes and then mounts Vite/static serving.
+ */
+
+process.on("unhandledRejection", (err) => {
+  console.error("[unhandledRejection]", err);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+});
+
 const app = express();
 
-declare module 'http' {
+/** Capture raw body (useful for webhooks / signature verification). */
+declare module "http" {
   interface IncomingMessage {
-    rawBody: unknown
+    rawBody?: Buffer;
   }
 }
-app.use(express.json({
-  verify: (req, _res, buf) => {
-    req.rawBody = buf;
-  }
-}));
-app.use(express.urlencoded({ extended: false }));
 
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (req as any).rawBody = buf;
+    },
+    limit: "2mb",
+  })
+);
+
+app.use(express.urlencoded({ extended: false, limit: "2mb" }));
+
+/**
+ * CORS
+ * Frontend dev server typically runs on http://localhost:5173
+ * In production, you should set CORS_ORIGIN to your deployed frontend URL.
+ */
+const corsOrigins = (
+  process.env.CORS_ORIGIN ||
+  "http://localhost:5173,http://127.0.0.1:5173"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: corsOrigins,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+app.options("*", cors());
+
+/** Minimal request logger (keeps your existing log util). */
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedJsonResponse: Record<string, unknown> | undefined;
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
+  const originalResJson = res.json.bind(res);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (res as any).json = (bodyJson: any, ...args: any[]) => {
     capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+    return (originalResJson as any)(bodyJson, ...args);
   };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
+    // Skip super noisy assets in dev
+    if (path.startsWith("/assets") || path.includes("favicon")) return;
 
-      log(logLine);
+    let line = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+    if (capturedJsonResponse) {
+      const json = JSON.stringify(capturedJsonResponse);
+      if (json.length < 300) line += ` :: ${json}`;
     }
+    log(line);
   });
 
   next();
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  const server = createServer(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+  await registerRoutes(app);
 
-    res.status(status).json({ message });
-    throw err;
+  // Centralized error handler (always AFTER routes)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    console.error("[express] unhandled error:", err);
+    const status = err?.status ?? err?.statusCode ?? 500;
+    const message = err?.message ?? "Internal Server Error";
+    res.status(status).json({ error: message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
+  // ALWAYS serve on PORT (default 5000). This serves both API + client.
+  const port = parseInt(process.env.PORT || "5000", 10);
   server.listen(port, () => {
     console.log(`serving on port ${port}`);
   });
