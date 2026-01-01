@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertMessageSchema, insertJournalEntrySchema, insertMoodEntrySchema, type Message } from "@shared/schema";
 import OpenAI from "openai";
 import { memoryService } from "./memory-service";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { requireAuth } from "./auth";
 import { comprehensiveAnalytics } from "./comprehensive-analytics";
 import { z } from "zod";
 
@@ -50,12 +50,10 @@ async function triggerCategoryScoring(userId: string) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth
-  await setupAuth(app);
-
   // Auth endpoint - check if user is authenticated
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error: any) {
@@ -65,9 +63,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Protected routes - all require authentication
-  app.post("/api/conversations", isAuthenticated, async (req: any, res) => {
+  app.post("/api/conversations", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const conversation = await storage.createConversation(userId);
       
       // Create initial welcome message in database for persistence
@@ -83,9 +81,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/conversations", isAuthenticated, async (req: any, res) => {
+  app.get("/api/conversations", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const conversations = await storage.getConversationsByUserId(userId);
       res.json(conversations);
     } catch (error: any) {
@@ -93,9 +91,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/messages", isAuthenticated, async (req: any, res) => {
+  app.post("/api/messages", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const validatedData = insertMessageSchema.parse(req.body);
       
       // Verify conversation belongs to authenticated user
@@ -168,9 +166,9 @@ Use these established facts to provide deeper, more personalized insights. Refer
     }
   });
 
-  app.get("/api/messages/:conversationId", isAuthenticated, async (req: any, res) => {
+  app.get("/api/messages/:conversationId", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Verify conversation belongs to authenticated user
       const conversation = await storage.getConversation(req.params.conversationId);
@@ -185,9 +183,9 @@ Use these established facts to provide deeper, more personalized insights. Refer
     }
   });
 
-  app.post("/api/journal-entries", isAuthenticated, async (req: any, res) => {
+  app.post("/api/journal-entries", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const validatedData = insertJournalEntrySchema.parse(req.body);
       const entry = await storage.createJournalEntry({ 
         ...validatedData, 
@@ -272,9 +270,9 @@ Focus on insights that would genuinely surprise them or help them see something 
     }
   });
 
-  app.get("/api/journal-entries", isAuthenticated, async (req: any, res) => {
+  app.get("/api/journal-entries", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const entries = await storage.getJournalEntriesByUserId(userId);
       res.json(entries);
     } catch (error: any) {
@@ -282,9 +280,9 @@ Focus on insights that would genuinely surprise them or help them see something 
     }
   });
 
-  app.put("/api/journal-entries/:id", isAuthenticated, async (req: any, res) => {
+  app.put("/api/journal-entries/:id", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { id } = req.params;
       
       // Verify ownership
@@ -304,9 +302,9 @@ Focus on insights that would genuinely surprise them or help them see something 
     }
   });
 
-  app.delete("/api/journal-entries/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/journal-entries/:id", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { id } = req.params;
       
       // Verify ownership
@@ -325,9 +323,9 @@ Focus on insights that would genuinely surprise them or help them see something 
     }
   });
 
-  app.get("/api/insights", isAuthenticated, async (req: any, res) => {
+  app.get("/api/insights", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const insights = await storage.getPersonalityInsightsByUserId(userId);
       res.json(insights);
     } catch (error: any) {
@@ -335,82 +333,10 @@ Focus on insights that would genuinely surprise them or help them see something 
     }
   });
 
-  app.post("/api/analyze-personality", isAuthenticated, async (req: any, res) => {
+
+  app.get("/api/stats", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const conversations = await storage.getConversationsByUserId(userId);
-      const journalEntries = await storage.getJournalEntriesByUserId(userId);
-      
-      if (conversations.length === 0 && journalEntries.length === 0) {
-        return res.status(400).json({ error: "Not enough data for analysis. Chat or journal first." });
-      }
-      
-      let allMessages: Message[] = [];
-      for (const conv of conversations) {
-        const msgs = await storage.getMessagesByConversationId(conv.id);
-        allMessages = allMessages.concat(msgs);
-      }
-      
-      const conversationText = allMessages.slice(-20).map(m => 
-        `${m.role}: ${m.content}`
-      ).join("\n");
-      
-      const journalText = journalEntries.slice(0, 10).map(e => 
-        `[${new Date(e.createdAt).toLocaleDateString()}] ${e.content.substring(0, 500)}`
-      ).join("\n\n---\n\n");
-      
-      const analysisPrompt = `You are conducting a comprehensive personality analysis. Analyze this person's conversations and journal entries to provide honest insights about their personality.
-
-Recent Conversations:
-${conversationText}
-
-Journal Entries:
-${journalText}
-
-Provide a detailed JSON analysis with:
-{
-  "traits": {
-    "openness": 0-100 (intellectual curiosity, creativity, openness to new experiences),
-    "conscientiousness": 0-100 (organization, responsibility, self-discipline),
-    "extraversion": 0-100 (social energy, assertiveness, enthusiasm),
-    "agreeableness": 0-100 (compassion, cooperation, trust),
-    "emotionalStability": 0-100 (resilience, emotional regulation, confidence)
-  },
-  "corePatterns": [
-    "Pattern 1: specific behavioral/emotional pattern you observe",
-    "Pattern 2: ...",
-    "Pattern 3: ..."
-  ],
-  "blindSpots": [
-    "Blind spot 1: what they can't see about themselves",
-    "Blind spot 2: ..."
-  ],
-  "strengths": [
-    "Strength 1: underutilized strength",
-    "Strength 2: ..."
-  ]
-}
-
-Be specific and reference their actual words/behaviors. Don't be generic - give them insights they couldn't get from a buzzfeed quiz.`;
-
-      const analysis = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: analysisPrompt }],
-        temperature: 0.7,
-        response_format: { type: "json_object" }
-      });
-
-      const result = JSON.parse(analysis.choices[0].message.content || "{}");
-      res.json(result);
-    } catch (error: any) {
-      console.error("Error in personality analysis:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.get("/api/stats", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const conversations = await storage.getConversationsByUserId(userId);
       const journalEntries = await storage.getJournalEntriesByUserId(userId);
       const insights = await storage.getPersonalityInsightsByUserId(userId);
@@ -448,9 +374,9 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
   });
 
   // Mood entry endpoints
-  app.post("/api/mood-entries", isAuthenticated, async (req: any, res) => {
+  app.post("/api/mood-entries", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const validatedData = insertMoodEntrySchema.parse(req.body);
       const entry = await storage.createMoodEntry({ ...validatedData, userId });
       res.json(entry);
@@ -459,9 +385,9 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
     }
   });
 
-  app.get("/api/mood-entries", isAuthenticated, async (req: any, res) => {
+  app.get("/api/mood-entries", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const entries = await storage.getMoodEntriesByUserId(userId);
       res.json(entries);
     } catch (error: any) {
@@ -545,9 +471,9 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
   }
 
   // Comprehensive personality reflection endpoint with async job support
-  app.post("/api/personality-reflection", isAuthenticated, async (req: any, res) => {
+  app.post("/api/personality-reflection", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { tier } = req.body as { tier?: 'free' | 'standard' | 'premium' };
       
       console.log('[PERSONALITY-REFLECTION] Request received:', { userId, requestedTier: tier });
@@ -607,9 +533,9 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
   });
 
   // Get personality reflection by ID (for polling)
-  app.get("/api/personality-reflection/:id", isAuthenticated, async (req: any, res) => {
+  app.get("/api/personality-reflection/:id", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const reflectionId = req.params.id;
       
       const reflection = await storage.getPersonalityReflection(reflectionId);
@@ -629,10 +555,34 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
     }
   });
 
-  // Get latest personality reflection (completed only)
-  app.get("/api/personality-reflection", isAuthenticated, async (req: any, res) => {
+  // Get latest personality reflection (active if running, else latest completed)
+  app.get("/api/personality-reflection/latest", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
+
+      // Prefer active reflection (pending/processing) for progress UX
+      const activeReflection = await storage.getActivePersonalityReflection(userId);
+      if (activeReflection) {
+        return res.json(activeReflection);
+      }
+
+      // Otherwise return latest completed reflection
+      const reflection = await storage.getLatestPersonalityReflection(userId);
+      if (!reflection) {
+        return res.status(404).json({ error: "No personality reflection found. Generate one first." });
+      }
+
+      res.json(reflection);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+
+  // Get latest personality reflection (completed only)
+  app.get("/api/personality-reflection", requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
       const reflection = await storage.getLatestPersonalityReflection(userId);
       
       if (!reflection) {
@@ -645,7 +595,7 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
     }
   });
 
-  app.post("/api/text-to-speech", isAuthenticated, async (req: any, res) => {
+  app.post("/api/text-to-speech", requireAuth, async (req: any, res) => {
     try {
       const { text, voiceId } = req.body;
 
@@ -720,7 +670,7 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
   });
 
   // GET /api/categories - List all categories with tier metadata
-  app.get("/api/categories", isAuthenticated, async (req: any, res) => {
+  app.get("/api/categories", requireAuth, async (req: any, res) => {
     try {
       const { getAllCategories } = await import("./categories");
       const categories = getAllCategories();
@@ -732,9 +682,9 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
   });
 
   // GET /api/user-categories - Get user's selected categories with latest scores
-  app.get("/api/user-categories", isAuthenticated, async (req: any, res) => {
+  app.get("/api/user-categories", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const selectedCategories = await storage.getUserSelectedCategories(userId);
       
       // Enrich with latest scores
@@ -758,9 +708,9 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
   });
 
   // POST /api/user-categories - Select a category to track
-  app.post("/api/user-categories", isAuthenticated, async (req: any, res) => {
+  app.post("/api/user-categories", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Validate request body
       const validation = selectCategorySchema.safeParse(req.body);
@@ -799,9 +749,9 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
   });
 
   // DELETE /api/user-categories/:categoryId - Unselect a category
-  app.delete("/api/user-categories/:categoryId", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/user-categories/:categoryId", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { categoryId } = req.params;
 
       await storage.unselectCategory(userId, categoryId);
@@ -813,9 +763,9 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
   });
 
   // POST /api/category-scores/:categoryId/generate - Generate and persist new score
-  app.post("/api/category-scores/:categoryId/generate", isAuthenticated, async (req: any, res) => {
+  app.post("/api/category-scores/:categoryId/generate", requireAuth, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.id;
       const { categoryId } = req.params;
       
       // Validate request body
@@ -861,9 +811,9 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
   });
 
   // GET /api/category-scores/:categoryId - Get score history for a category
-  app.get("/api/category-scores/:categoryId", isAuthenticated, async (req: any, res) => {
+  app.get("/api/category-scores/:categoryId", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { categoryId } = req.params;
       
       // Validate query parameters
@@ -883,9 +833,9 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
   });
 
   // GET /api/category-insights/:categoryId - Get insights for a category
-  app.get("/api/category-insights/:categoryId", isAuthenticated, async (req: any, res) => {
+  app.get("/api/category-insights/:categoryId", requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { categoryId } = req.params;
       const limit = parseInt(req.query.limit as string) || 10;
 

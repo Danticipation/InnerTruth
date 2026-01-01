@@ -1,49 +1,102 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Users } from "lucide-react";
-import heroImage from "@assets/generated_images/Hero-Background-image.png";
+import { ArrowRight, Shield } from "lucide-react";
+
+import heroBg from "/assets/blurred-geometry-1.jpg";
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${heroImage})` }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
-      
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-20 text-center">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-white mb-4 sm:mb-6 leading-tight">
-          Discover the{" "}
-          <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Hard Truth
-          </span>
-          {" "}About Yourself
-        </h1>
-        <p className="text-base sm:text-lg md:text-xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
-          The most in-depth AI personality analyzer. Uncover blind spots, understand patterns, and transform who you are through honest self-reflection.
-        </p>
-        
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-12 px-4">
-          <Button 
-            size="lg" 
-            className="w-full sm:w-auto px-6 sm:px-8 py-5 sm:py-6 text-base sm:text-lg"
-            data-testid="button-start-journey"
-          >
-            Start Your Journey <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
-          </Button>
-          <Button 
-            size="lg" 
-            variant="outline" 
-            className="w-full sm:w-auto px-6 sm:px-8 py-5 sm:py-6 text-base sm:text-lg backdrop-blur-sm bg-white/10 border-white/30 text-white hover:bg-white/20"
-            data-testid="button-how-it-works"
-          >
-            See How It Works
-          </Button>
+    <section className="mx-auto max-w-5xl px-6">
+      <div className="relative mt-8 overflow-hidden rounded-3xl border bg-card">
+        {/* Background */}
+        <div className="absolute inset-0">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${heroBg})` }}
+          />
+          {/* Dim */}
+          <div className="absolute inset-0 bg-black/55" />
+          {/* Vignette */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/75" />
         </div>
-        
-        <div className="flex items-center justify-center gap-2 text-white/80 px-4">
-          <Users className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="text-xs sm:text-sm">Join 50,000+ people discovering themselves</span>
+
+        {/* Content */}
+        <div className="relative z-10 grid gap-10 px-6 py-14 lg:grid-cols-2 lg:items-center lg:px-12">
+          {/* Left: headline/copy */}
+          <div className="text-center lg:text-left">
+            <div className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80">
+              AI-powered self-awareness • Built for honesty
+            </div>
+
+            <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+              Discover your blind spots.
+            </h1>
+
+            <p className="mt-4 text-lg text-white/85">
+              InnerTruth analyzes your conversations and journal entries to surface patterns, defenses, and relationship
+              dynamics — then gives you actionable experiments to change them.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
+              <Button asChild size="lg" className="w-full sm:w-auto" data-testid="button-hero-cta">
+                <a href="/auth">
+                  Start your journey <ArrowRight className="ml-2 h-5 w-5" />
+                </a>
+              </Button>
+
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="w-full sm:w-auto bg-white/10 border-white/25 text-white hover:bg-white/20"
+                data-testid="button-hero-secondary"
+              >
+                <a href="#features">See features</a>
+              </Button>
+            </div>
+
+            <div className="mt-6 flex items-center justify-center gap-2 text-sm text-white/75 lg:justify-start">
+              <Shield className="h-4 w-4" />
+              <span>Private by design. You control your data.</span>
+            </div>
+          </div>
+
+          {/* Right: “What you get” panel */}
+          <div className="flex justify-center lg:justify-end">
+            <div className="w-full max-w-md rounded-2xl border border-white/15 bg-black/30 p-6 shadow-lg backdrop-blur-md">
+              <h2 className="text-base font-semibold text-white">What InnerTruth gives you</h2>
+
+              <ul className="mt-4 space-y-3 text-sm text-white/85">
+                <li className="flex gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/70" />
+                  <span>
+                    <strong className="text-white">Blind spots</strong> you can’t see — with evidence from your own
+                    words.
+                  </span>
+                </li>
+
+                <li className="flex gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/70" />
+                  <span>
+                    <strong className="text-white">Patterns</strong> in how you handle stress, conflict, and intimacy.
+                  </span>
+                </li>
+
+                <li className="flex gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/70" />
+                  <span>
+                    <strong className="text-white">Actionable experiments</strong> — small steps that create real change.
+                  </span>
+                </li>
+              </ul>
+
+              <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs text-white/80">
+                  This isn’t another “personality quiz.” It’s a mirror built from your real behavior — so you can grow
+                  faster.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

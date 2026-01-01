@@ -40,6 +40,8 @@ export interface IStorage {
   createPersonalityReflection(reflection: InsertPersonalityReflection & { userId: string }): Promise<PersonalityReflection>;
   getLatestPersonalityReflection(userId: string): Promise<PersonalityReflection | undefined>;
   getPersonalityReflection(id: string): Promise<PersonalityReflection | undefined>;
+  getPersonalityReflectionForUser(id: string, userId: string): Promise<PersonalityReflection | undefined>;
+  updatePersonalityReflectionForUser(id: string, userId: string, updates: Partial<PersonalityReflection>): Promise<PersonalityReflection>;
   updatePersonalityReflection(id: string, updates: Partial<PersonalityReflection>): Promise<PersonalityReflection>;
   getActivePersonalityReflection(userId: string): Promise<PersonalityReflection | undefined>;
   
@@ -235,6 +237,18 @@ export class MemStorage implements IStorage {
 
   async getPersonalityReflection(id: string): Promise<PersonalityReflection | undefined> {
     return undefined;
+  }
+
+  async getPersonalityReflectionForUser(id: string, userId: string): Promise<PersonalityReflection | undefined> {
+    return undefined;
+  }
+
+  async updatePersonalityReflectionForUser(
+    id: string,
+    userId: string,
+    updates: Partial<PersonalityReflection>
+  ): Promise<PersonalityReflection> {
+    throw new Error("Personality reflections not supported in MemStorage");
   }
 
   async updatePersonalityReflection(id: string, updates: Partial<PersonalityReflection>): Promise<PersonalityReflection> {
@@ -447,6 +461,32 @@ export class PostgresStorage implements IStorage {
     const result = await db.select().from(personalityReflections)
       .where(eq(personalityReflections.id, id))
       .limit(1);
+    return result[0];
+  }
+
+  async getPersonalityReflectionForUser(id: string, userId: string): Promise<PersonalityReflection | undefined> {
+    const result = await db
+      .select()
+      .from(personalityReflections)
+      .where(and(eq(personalityReflections.id, id), eq(personalityReflections.userId, userId)))
+      .limit(1);
+    return result[0];
+  }
+
+  async updatePersonalityReflectionForUser(
+    id: string,
+    userId: string,
+    updates: Partial<PersonalityReflection>
+  ): Promise<PersonalityReflection> {
+    const result = await db
+      .update(personalityReflections)
+      .set(updates)
+      .where(and(eq(personalityReflections.id, id), eq(personalityReflections.userId, userId)))
+      .returning();
+
+    if (!result[0]) {
+      throw new Error("Personality reflection not found or access denied");
+    }
     return result[0];
   }
 

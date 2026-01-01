@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from "recharts";
-import analysisImage from "@assets/generated_images/Analysis_process_illustration_571ba544.png";
+import analysisImage from "../../assets/Analysis_process_illustration_571ba544.png";
 import { AlertCircle, TrendingUp } from "lucide-react";
 
 const personalityData = [
