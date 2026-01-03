@@ -5,6 +5,8 @@ import { supabase } from "@/lib/supabase";
 export interface User {
   id: string;
   email: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
 }
 
 export interface AuthContextType {
