@@ -122,9 +122,6 @@ Prioritize quality over quantity. Go deep.`
 
       let response = completion.choices[0].message.content || "[]";
       
-      // DEBUG: Log raw response to diagnose parse errors
-      console.log('[MEMORY-SERVICE] Raw GPT response (first 500 chars):', response.substring(0, 500));
-      
       // ROBUST: Strip markdown code blocks if GPT wraps JSON (common with GPT-4o)
       response = response.trim();
       if (response.startsWith('```')) {
@@ -138,8 +135,6 @@ Prioritize quality over quantity. Go deep.`
       if (jsonStart >= 0 && jsonEnd > jsonStart) {
         response = response.substring(jsonStart, jsonEnd + 1);
       }
-      
-      console.log('[MEMORY-SERVICE] Cleaned response (first 500 chars):', response.substring(0, 500));
       
       const facts = JSON.parse(response);
       

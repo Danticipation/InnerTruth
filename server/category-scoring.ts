@@ -267,7 +267,6 @@ export async function generateAndPersistCategoryScore(
   );
 
   if (existingScore) {
-    console.log(`Score already exists for user ${userId}, category ${categoryId}, period ${periodType}, periodStart ${periodStart.toISOString()}`);
     // Return existing score data with all fields from scoreResult
     return {
       score: existingScore.score,

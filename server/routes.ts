@@ -468,7 +468,6 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
 
   // Background job processor for personality reflection generation
   async function processPersonalityReflection(reflectionId: string, userId: string, tier: 'free' | 'standard' | 'premium') {
-    console.log('[PERSONALITY-REFLECTION] Background job started:', { reflectionId, userId, tier });
     
     try {
       // Update status to processing
@@ -521,7 +520,6 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
         statistics: profile.statistics,
       });
       
-      console.log('[PERSONALITY-REFLECTION] Background job completed:', reflectionId);
       
     } catch (error: any) {
       console.error('[PERSONALITY-REFLECTION] Background job failed:', error);
@@ -547,7 +545,6 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
       const userId = req.user!.id;
       const { tier } = req.body as { tier?: 'free' | 'standard' | 'premium' };
       
-      console.log('[PERSONALITY-REFLECTION] Request received:', { userId, requestedTier: tier });
       
       // Default to free tier if not specified
       const analysisTier = tier || 'free';
@@ -560,7 +557,6 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
       // Check if there's already an active generation for this user (per-user lock)
       const activeReflection = await storage.getActivePersonalityReflection(userId);
       if (activeReflection) {
-        console.log('[PERSONALITY-REFLECTION] Active job found, returning existing:', activeReflection.id);
         return res.json(activeReflection);
       }
       
@@ -587,7 +583,6 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
         statistics: null,
       });
       
-      console.log('[PERSONALITY-REFLECTION] Created pending job:', reflection.id);
       
       // Kick off background processing (don't await - fire and forget)
       processPersonalityReflection(reflection.id, userId, analysisTier).catch(err => {
@@ -646,7 +641,6 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
     try {
       const { text, voiceId } = req.body;
 
-      console.log("[TTS] Request received, text length:", text?.length, "voiceId:", voiceId);
 
       if (!text) {
         return res.status(400).json({ error: "Text is required" });
@@ -659,7 +653,6 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
 
       const voice = voiceId || "21m00Tcm4TlvDq8ikWAM"; // Default to Rachel voice
 
-      console.log("[TTS] Calling Eleven Labs API with voice:", voice);
 
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
         method: "POST",
@@ -678,7 +671,6 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
         }),
       });
 
-      console.log("[TTS] Eleven Labs response status:", response.status);
 
       if (!response.ok) {
         const error = await response.text();
@@ -687,7 +679,6 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
       }
 
       const audioBuffer = await response.arrayBuffer();
-      console.log("[TTS] Audio buffer received, size:", audioBuffer.byteLength, "bytes");
       
       res.setHeader("Content-Type", "audio/mpeg");
       res.send(Buffer.from(audioBuffer));

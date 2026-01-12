@@ -82,11 +82,7 @@ app.use((req, res, next) => {
     // Skip super noisy assets in dev
     if (path.startsWith("/assets") || path.includes("favicon")) return;
 
-    let line = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-    if (capturedJsonResponse) {
-      const json = JSON.stringify(capturedJsonResponse);
-      if (json.length < 300) line += ` :: ${json}`;
-    }
+    const line = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
     log(line);
   });
 

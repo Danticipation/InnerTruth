@@ -109,23 +109,14 @@ export class ComprehensiveAnalytics {
       const moodEntries = await storage.getMoodEntriesByUserId(userId);
       const memoryFacts = await storage.getMemoryFactsByUserId(userId);
       
-      // DEBUG: Log what we fetched
-      console.log('[COMPREHENSIVE-ANALYTICS] Data fetched for userId:', userId);
-      console.log('[COMPREHENSIVE-ANALYTICS] Conversations:', conversations.length);
-      console.log('[COMPREHENSIVE-ANALYTICS] Journal entries:', journalEntries.length);
-      console.log('[COMPREHENSIVE-ANALYTICS] Mood entries:', moodEntries.length);
-      console.log('[COMPREHENSIVE-ANALYTICS] Memory facts:', memoryFacts.length);
-      
       if (onProgress) await onProgress(10, 'Processing conversations...');
       
       // Collect all messages from conversations
       let allMessages: Message[] = [];
       for (const conv of conversations) {
         const msgs = await storage.getMessagesByConversationId(conv.id);
-        console.log(`[COMPREHENSIVE-ANALYTICS] Conversation ${conv.id} has ${msgs.length} messages`);
         allMessages = allMessages.concat(msgs);
       }
-      console.log('[COMPREHENSIVE-ANALYTICS] Total messages:', allMessages.length);
 
       // Calculate statistics
       const statistics = this.calculateStatistics(
@@ -268,8 +259,6 @@ export class ComprehensiveAnalytics {
     tier: AnalysisTier,
     onProgress?: (progress: number, currentSection: string) => Promise<void>
   ): Promise<ComprehensiveProfile> {
-    console.log(`[MULTI-PASS] Starting ${TIER_CONFIG[tier].name} analysis (${TIER_CONFIG[tier].sections.length} sections)...`);
-    
     // Prepare shared context for all sections
     const context = this.prepareAnalysisContext(messages, journals, moods, facts, statistics);
     
@@ -314,8 +303,6 @@ export class ComprehensiveAnalytics {
     
     // Generate sections SEQUENTIALLY to avoid rate limits (30k tokens/min on free tier)
     // Parallel generation causes all sections to hit rate limit and fall back to weak prompts
-    console.log('[MULTI-PASS] Generating sections sequentially to avoid rate limits...');
-    
     const totalSections = enabledSections.length;
     let failedSections = 0;
     const failedSectionNames: string[] = [];
@@ -328,7 +315,6 @@ export class ComprehensiveAnalytics {
       const progressPercent = 25 + Math.round((i / totalSections) * 60);
       if (onProgress) await onProgress(progressPercent, `Analyzing ${displayName}...`);
       
-      console.log(`[MULTI-PASS] Generating ${sectionName}...`);
       const insights = await this.generateSectionWithRetry(sectionName, context);
       profile[sectionName] = insights;
       
@@ -357,7 +343,6 @@ export class ComprehensiveAnalytics {
     }
     
     // CROSS-SECTION DUPLICATE DETECTION (enforces anti-echo across entire analysis)
-    console.log('[MULTI-PASS] Running cross-section duplicate detection...');
     const allInsights: Array<{section: string, insight: string, index: number}> = [];
     
     // Collect all insights from all sections
@@ -390,12 +375,6 @@ export class ComprehensiveAnalytics {
       }
     }
     
-    if (duplicatePairs.length > 0) {
-      console.warn(`[CROSS-SECTION DEDUP] Found and removed ${duplicatePairs.length} cross-section duplicates`);
-    } else {
-      console.log('[CROSS-SECTION DEDUP] No cross-section duplicates detected');
-    }
-    
     // Generate holy shit moment and leverage point for premium tier
     if (TIER_CONFIG[tier].includesHolyShit) {
       if (onProgress) await onProgress(90, 'Synthesizing your "Holy Shit" moment...');
@@ -405,7 +384,6 @@ export class ComprehensiveAnalytics {
     }
     
     if (onProgress) await onProgress(95, 'Finalizing analysis...');
-    console.log('[MULTI-PASS] Analysis complete!');
     return profile as ComprehensiveProfile;
   }
 
@@ -601,9 +579,6 @@ Return JSON:
         
         // SUCCESS: Check if we got enough insights
         if (insights.length >= 6) {
-          if (attempt > 1) {
-            console.log(`[RETRY-SUCCESS] ${sectionName}: Got ${insights.length} insights on attempt ${attempt}`);
-          }
           return insights;
         }
         
@@ -634,8 +609,6 @@ Return JSON:
   }
 
   private async generateSectionSimplified(sectionName: string, context: any): Promise<string[]> {
-    console.log(`[SIMPLIFIED] ${sectionName}: Using high-urgency simplified prompt (retry path)...`);
-    
     // Trim context to most recent/important evidence only
     const trimmedContext = {
       conversationText: context.conversationText ? context.conversationText.slice(0, 3000) : '',
@@ -689,13 +662,10 @@ Return JSON with exactly 8 insights: {"insights": ["insight 1", "insight 2", ...
     const result = this.parseAIResponse(response.choices[0].message.content || "{}");
     const insights = result.insights || [];
     
-    console.log(`[SIMPLIFIED] ${sectionName}: Generated ${insights.length} insights via simplified path`);
     return insights;
   }
 
   private async generateSection(sectionName: string, context: any, useSimplifiedPrompt: boolean = false): Promise<string[]> {
-    console.log(`[MULTI-PASS] Generating ${sectionName} (2-step process${useSimplifiedPrompt ? ', simplified prompt' : ''})...`);
-    
     // SIMPLIFIED PROMPT PATH: Used for retries when full prompt failed
     if (useSimplifiedPrompt) {
       return this.generateSectionSimplified(sectionName, context);
@@ -761,8 +731,6 @@ Return JSON with exactly 8 insights: {"insights": ["insight 1", "insight 2", ...
     const guide = sectionGuides[sectionName as keyof typeof sectionGuides];
     
     // STEP 1: First pass - generate initial analysis
-    console.log(`[MULTI-PASS] ${sectionName}: First pass (initial generation)...`);
-    
     const firstPassPrompt = `Generate 8-12 impactful psychological insights for: **${sectionName}**
 
 FORMAT: ${guide.format}
@@ -858,8 +826,6 @@ Every single insight must make them think "how did you know that?" - not "I alre
     const firstPassInsights = firstPassResult.insights || [];
     
     // STEP 2: Second pass - senior supervisor critique and rewrite (ENFORCED REJECTION)
-    console.log(`[MULTI-PASS] ${sectionName}: Second pass (senior supervisor critique & rewrite)...`);
-    
     const secondPassPrompt = `You are a ruthless senior clinical supervisor reviewing this first draft for ${sectionName}.
 
 FIRST DRAFT:
@@ -920,10 +886,7 @@ Return JSON:
     
     // LOG SUPERVISOR REJECTION METRICS
     if (rejectionCount > 0) {
-      console.log(`[SUPERVISOR] ${sectionName}: Rejected/rewrote ${rejectionCount}/${firstPassInsights.length} insights (${Math.round(rejectionCount/firstPassInsights.length*100)}%)`);
-      if (rejectionReasons.length > 0) {
-        console.log(`[SUPERVISOR] Rejection reasons:`, rejectionReasons.slice(0, 3).join('; ')); // Log first 3 reasons
-      }
+      // Operational metrics only, no content logging
     } else {
       console.warn(`[SUPERVISOR] ${sectionName}: WARNING - Supervisor approved all insights without rejection. Quality gate may be too lenient.`);
     }
@@ -936,12 +899,6 @@ Return JSON:
     );
     
     const uniqueInsights = this.removeDuplicateInsights(filteredInsights);
-    
-    if (uniqueInsights.length < filteredInsights.length) {
-      console.warn(`[MULTI-PASS] ${sectionName}: Removed ${filteredInsights.length - uniqueInsights.length} duplicate insights (${uniqueInsights.length} unique)`);
-    } else {
-      console.log(`[MULTI-PASS] ${sectionName}: Generated ${uniqueInsights.length} unique insights`);
-    }
     
     return uniqueInsights;
   }
@@ -1019,8 +976,6 @@ Return JSON:
   }
 
   private async generateHolyShitMoment(context: any, profile: any) {
-    console.log('[MULTI-PASS] Generating Holy Shit Moment...');
-    
     const prompt = `Based on ALL the insights below, identify THE single organizing principle that connects everything + ONE counter-intuitive action.
 
 INSIGHTS GENERATED:
@@ -1246,7 +1201,6 @@ Remember: They can get surface-level feedback anywhere. You're here to reveal wh
 
     try {
       // STEP 1: First pass - generate initial analysis
-      console.log('[SINGLE-PASS AI] Generating comprehensive analysis...');
       const firstPassCompletion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -1262,20 +1216,6 @@ Remember: They can get surface-level feedback anywhere. You're here to reveal wh
       });
 
       const analysis = JSON.parse(firstPassCompletion.choices[0].message.content || "{}");
-      console.log('[SINGLE-PASS AI] Analysis complete. Preview:', {
-        behavioralPatterns: (analysis.behavioralPatterns || []).length,
-        emotionalPatterns: (analysis.emotionalPatterns || []).length,
-        relationshipDynamics: (analysis.relationshipDynamics || []).length,
-        copingMechanisms: (analysis.copingMechanisms || []).length,
-        growthAreas: (analysis.growthAreas || []).length,
-        strengths: (analysis.strengths || []).length,
-        blindSpots: (analysis.blindSpots || []).length,
-        valuesAndBeliefs: (analysis.valuesAndBeliefs || []).length,
-        therapeuticInsights: (analysis.therapeuticInsights || []).length,
-        hasHolyShitMoment: !!analysis.holyShitMoment,
-        hasGrowthLeveragePoint: !!analysis.growthLeveragePoint
-      });
-      console.log('[SINGLE-PASS AI] Analysis generation complete.');
       
       // Validate and enforce that we got the required depth (8-12 items per category)
       const arrayFields = [
