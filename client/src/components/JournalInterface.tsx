@@ -173,7 +173,7 @@ export function JournalInterface() {
               value={entry}
               onChange={(e) => setEntry(e.target.value)}
               placeholder="What's on your mind? Write freely about your thoughts, feelings, and experiences..."
-              className="min-h-[300px] sm:min-h-[400px] resize-none font-serif text-sm sm:text-base"
+              className="min-h-[300px] sm:min-h-100 resize-none font-serif text-sm sm:text-base"
               data-testid="textarea-journal-entry"
             />
             <div className="flex justify-between items-center text-xs sm:text-sm text-muted-foreground flex-wrap gap-2">
