@@ -2,27 +2,17 @@ import type { Express, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMessageSchema, insertJournalEntrySchema, insertMoodEntrySchema, type Message } from "@shared/schema";
-import OpenAI from "openai";
+import { aiService } from "./services/ai.service";
 import { memoryService } from "./memory-service";
 import { requireAuth, type AuthedRequest } from "./auth";
 import { comprehensiveAnalytics } from "./comprehensive-analytics";
 import { z } from "zod";
-
-// Initialize OpenAI client - prioritize direct API for unfiltered access
-const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-if (!apiKey) {
-  console.error("ERROR: No OpenAI API key configured. Set either OPENAI_API_KEY or AI_INTEGRATIONS_OPENAI_API_KEY");
-  throw new Error("OpenAI API key not configured");
-}
-
-const openai = new OpenAI({
-  apiKey,
-  // Only use baseURL if using Replit integration (AI_INTEGRATIONS_OPENAI_API_KEY)
-  baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL
-});
+import { ForbiddenError, NotFoundError, BadRequestError } from "./lib/errors";
+import { config } from "./config";
+import { jobCoordinator } from "./lib/jobs";
 
 async function triggerCategoryScoring(userId: string) {
-  try {
+  jobCoordinator.run("category-scoring", userId, async () => {
     const selectedCategories = await storage.getUserSelectedCategories(userId);
     
     if (selectedCategories.length === 0) {
@@ -31,38 +21,33 @@ async function triggerCategoryScoring(userId: string) {
 
     for (const userCategory of selectedCategories) {
       const { categoryId } = userCategory;
-      
       const { generateAndPersistCategoryScore } = await import("./category-scoring");
       
-      generateAndPersistCategoryScore(
+      await generateAndPersistCategoryScore(
         userId,
         categoryId,
         "daily",
         7
-      ).catch(err => {
-        console.error(`Background category scoring failed for ${categoryId}:`, err.message);
-      });
+      );
     }
-  } catch (error: any) {
-    console.error("Error triggering category scoring:", error.message);
-  }
+  });
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth endpoint - check if user is authenticated
-  app.get('/api/auth/user', requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.get('/api/auth/user', requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const user = await storage.getUser(userId);
+      if (!user) throw new NotFoundError("User not found");
       res.json(user);
     } catch (error: any) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+      next(error);
     }
   });
 
   // Protected routes - all require authentication
-  app.post("/api/conversations", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.post("/api/conversations", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const conversation = await storage.createConversation(userId);
@@ -76,29 +61,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(conversation);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.get("/api/conversations", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.get("/api/conversations", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const conversations = await storage.getConversationsByUserId(userId);
       res.json(conversations);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.post("/api/messages", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.post("/api/messages", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const validatedData = insertMessageSchema.parse(req.body);
       
       // Verify conversation belongs to authenticated user
-      const conversation = await storage.getConversation(validatedData.conversationId);
-      if (!conversation || conversation.userId !== userId) {
-        return res.status(403).json({ error: "Forbidden: conversation not found or access denied" });
+      const conversation = await storage.getConversation(validatedData.conversationId, userId);
+      if (!conversation) {
+        throw new ForbiddenError("Conversation not found or access denied");
       }
       
       const userMessage = await storage.createMessage(validatedData);
@@ -107,46 +92,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Error triggering category scoring after message:", err)
       );
       
-      const conversationHistory = await storage.getMessagesByConversationId(validatedData.conversationId);
-      
+      const conversationHistory = await storage.getMessagesByConversationId(validatedData.conversationId, userId);
       const memoryContext = await memoryService.getMemoryContext(userId);
       
-      const systemPrompt = `You are a direct, insightful AI personality analyst. Your role is to help users gain deeper self-understanding. You are:
-1. Empathetic but honest - provide clear observations without minimizing
-2. Pattern-focused - actively identify contradictions, recurring themes, and behavioral patterns
-3. Direct when appropriate - if you notice avoidance, people-pleasing, or self-deception, point it out clearly but kindly
-4. Curious about root causes - dig deeper into "why" behind behaviors and beliefs
-5. Growth-oriented - always connect insights to actionable improvements
-
-Your style:
-- Ask probing questions that challenge assumptions
-- Point out contradictions you notice: "Earlier you said X, but now you're saying Y. What's really going on?"
-- Name patterns directly: "I'm noticing a pattern where you..."
-- Balance clarity with compassion - be direct and supportive
-- Keep responses 2-4 sentences with one meaningful question
-
-Your goal is to be the honest mirror users need for genuine self-awareness.
-
-${memoryContext}
-
-Use these established facts to provide deeper, more personalized insights. Reference specific patterns or details you know about the user.`;
-
-      const messages = [
-        { role: "system" as const, content: systemPrompt },
-        ...conversationHistory.map(msg => ({
-          role: msg.role as "user" | "assistant",
-          content: msg.content
-        }))
-      ];
-
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages,
-        temperature: 0.8,
-        max_tokens: 500,
-      });
-
-      const aiResponse = completion.choices[0].message.content || "I'm here to listen. Please continue.";
+      const aiResponse = await aiService.generateChatResponse(userId, conversationHistory, memoryContext);
       
       const aiMessage = await storage.createMessage({
         conversationId: validatedData.conversationId,
@@ -160,29 +109,28 @@ Use these established facts to provide deeper, more personalized insights. Refer
 
       res.json({ userMessage, aiMessage });
     } catch (error: any) {
-      console.error("Error in /api/messages:", error);
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.get("/api/messages/:conversationId", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.get("/api/messages/:conversationId", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       
       // Verify conversation belongs to authenticated user
-      const conversation = await storage.getConversation(req.params.conversationId);
-      if (!conversation || conversation.userId !== userId) {
-        return res.status(403).json({ error: "Forbidden: conversation not found or access denied" });
+      const conversation = await storage.getConversation(req.params.conversationId, userId);
+      if (!conversation) {
+        throw new ForbiddenError("Conversation not found or access denied");
       }
       
-      const messages = await storage.getMessagesByConversationId(req.params.conversationId);
+      const messages = await storage.getMessagesByConversationId(req.params.conversationId, userId);
       res.json(messages);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.post("/api/journal-entries", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.post("/api/journal-entries", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const validatedData = insertJournalEntrySchema.parse(req.body);
@@ -198,52 +146,22 @@ Use these established facts to provide deeper, more personalized insights. Refer
       const allEntries = await storage.getJournalEntriesByUserId(userId);
       const conversations = await storage.getConversationsByUserId(userId);
       
-      if (allEntries.length >= 1) {  // Generate insights even with just one entry for faster feedback
+      if (allEntries.length >= 1) {
         const entriesText = allEntries.slice(0, 10).map(e => 
           `[${new Date(e.createdAt).toLocaleDateString()}] ${e.content}`
         ).join("\n\n---\n\n");
         
         let conversationContext = "";
         if (conversations.length > 0) {
-          const recentConv = conversations[conversations.length - 1];
-          const messages = await storage.getMessagesByConversationId(recentConv.id);
+          const recentConv = conversations[0]; // getConversationsByUserId returns sorted by desc
+          const messages = await storage.getMessagesByConversationId(recentConv.id, userId);
           conversationContext = `\n\nRecent conversation themes:\n${messages.slice(-10).map(m => 
             `${m.role}: ${m.content}`
           ).join("\n")}`;
         }
         
-        const analysisPrompt = `You are a personality analyst examining someone's inner world. Analyze these journal entries and conversation patterns to identify ONE significant personality insight.
-
-Journal Entries:
-${entriesText}${conversationContext}
-
-Look for:
-1. Recurring patterns (behavioral, emotional, relational)
-2. Contradictions between stated values and actions
-3. Blind spots - what they can't see about themselves
-4. Defense mechanisms or avoidance patterns
-5. Strengths they underutilize
-6. Core beliefs driving behavior
-
-Provide a JSON response with:
-{
-  "insightType": "blind_spot" or "growth_opportunity",
-  "title": "Brief, direct title (max 8 words)",
-  "description": "Specific, honest insight with concrete examples from their writing (2-3 sentences). Be direct but compassionate.",
-  "priority": "high" (affects relationships/wellbeing), "medium" (limits growth), or "low" (minor optimization)
-}
-
-Focus on insights that would genuinely surprise them or help them see something they've been avoiding.`;
-
         try {
-          const analysis = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [{ role: "user", content: analysisPrompt }],
-            temperature: 0.8,
-            response_format: { type: "json_object" }
-          });
-
-          const insight = JSON.parse(analysis.choices[0].message.content || "{}");
+          const insight = await aiService.analyzeJournalInsight(entriesText, conversationContext);
           
           if (insight.title && insight.description) {
             await storage.createPersonalityInsight({
@@ -265,86 +183,68 @@ Focus on insights that would genuinely surprise them or help them see something 
       
       res.json(entry);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.get("/api/journal-entries", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.get("/api/journal-entries", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const entries = await storage.getJournalEntriesByUserId(userId);
       res.json(entries);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.put("/api/journal-entries/:id", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.put("/api/journal-entries/:id", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
-      
-      // Verify ownership
-      const entry = await storage.getJournalEntriesByUserId(userId).then(entries => 
-        entries.find(e => e.id === id)
-      );
-      
-      if (!entry) {
-        return res.status(404).json({ error: "Journal entry not found" });
-      }
       
       const validatedData = insertJournalEntrySchema.partial().parse(req.body);
-      const updatedEntry = await storage.updateJournalEntry(id, validatedData);
+      const updatedEntry = await storage.updateJournalEntry(id, userId, validatedData);
       res.json(updatedEntry);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.delete("/api/journal-entries/:id", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.delete("/api/journal-entries/:id", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const { id } = req.params;
       
-      // Verify ownership
-      const entry = await storage.getJournalEntriesByUserId(userId).then(entries => 
-        entries.find(e => e.id === id)
-      );
-      
-      if (!entry) {
-        return res.status(404).json({ error: "Journal entry not found" });
-      }
-      
-      await storage.deleteJournalEntry(id);
+      await storage.deleteJournalEntry(id, userId);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.get("/api/insights", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.get("/api/insights", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const insights = await storage.getPersonalityInsightsByUserId(userId);
       res.json(insights);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.post("/api/analyze-personality", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.post("/api/analyze-personality", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const conversations = await storage.getConversationsByUserId(userId);
       const journalEntries = await storage.getJournalEntriesByUserId(userId);
       
       if (conversations.length === 0 && journalEntries.length === 0) {
-        return res.status(400).json({ error: "Not enough data for analysis. Chat or journal first." });
+        throw new BadRequestError("Not enough data for analysis. Chat or journal first.");
       }
       
       let allMessages: Message[] = [];
       for (const conv of conversations) {
-        const msgs = await storage.getMessagesByConversationId(conv.id);
+        const msgs = await storage.getMessagesByConversationId(conv.id, userId);
         allMessages = allMessages.concat(msgs);
       }
       
@@ -356,56 +256,14 @@ Focus on insights that would genuinely surprise them or help them see something 
         `[${new Date(e.createdAt).toLocaleDateString()}] ${e.content.substring(0, 500)}`
       ).join("\n\n---\n\n");
       
-      const analysisPrompt = `You are conducting a comprehensive personality analysis. Analyze this person's conversations and journal entries to provide honest insights about their personality.
-
-Recent Conversations:
-${conversationText}
-
-Journal Entries:
-${journalText}
-
-Provide a detailed JSON analysis with:
-{
-  "traits": {
-    "openness": 0-100 (intellectual curiosity, creativity, openness to new experiences),
-    "conscientiousness": 0-100 (organization, responsibility, self-discipline),
-    "extraversion": 0-100 (social energy, assertiveness, enthusiasm),
-    "agreeableness": 0-100 (compassion, cooperation, trust),
-    "emotionalStability": 0-100 (resilience, emotional regulation, confidence)
-  },
-  "corePatterns": [
-    "Pattern 1: specific behavioral/emotional pattern you observe",
-    "Pattern 2: ...",
-    "Pattern 3: ..."
-  ],
-  "blindSpots": [
-    "Blind spot 1: what they can't see about themselves",
-    "Blind spot 2: ..."
-  ],
-  "strengths": [
-    "Strength 1: underutilized strength",
-    "Strength 2: ..."
-  ]
-}
-
-Be specific and reference their actual words/behaviors. Don't be generic - give them insights they couldn't get from a buzzfeed quiz.`;
-
-      const analysis = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: analysisPrompt }],
-        temperature: 0.7,
-        response_format: { type: "json_object" }
-      });
-
-      const result = JSON.parse(analysis.choices[0].message.content || "{}");
+      const result = await aiService.performFullAnalysis(conversationText, journalText);
       res.json(result);
     } catch (error: any) {
-      console.error("Error in personality analysis:", error);
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.get("/api/stats", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.get("/api/stats", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const conversations = await storage.getConversationsByUserId(userId);
@@ -440,29 +298,29 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
         profileCompletion: Math.min(100, (conversations.length * 5) + (journalEntries.length * 10))
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
   // Mood entry endpoints
-  app.post("/api/mood-entries", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.post("/api/mood-entries", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const validatedData = insertMoodEntrySchema.parse(req.body);
       const entry = await storage.createMoodEntry({ ...validatedData, userId });
       res.json(entry);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
-  app.get("/api/mood-entries", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.get("/api/mood-entries", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const entries = await storage.getMoodEntriesByUserId(userId);
       res.json(entries);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      next(error);
     }
   });
 
@@ -584,10 +442,10 @@ Be specific and reference their actual words/behaviors. Don't be generic - give 
       });
       
       
-      // Kick off background processing (don't await - fire and forget)
-      processPersonalityReflection(reflection.id, userId, analysisTier).catch(err => {
-        console.error('[PERSONALITY-REFLECTION] Background job error:', err);
-      });
+      // Kick off background processing via coordinator
+      jobCoordinator.run("personality-reflection", userId, () => 
+        processPersonalityReflection(reflection.id, userId, analysisTier)
+      );
       
       // Return the pending reflection immediately
       res.json(reflection);

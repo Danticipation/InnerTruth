@@ -119,7 +119,7 @@ export async function generateCategoryScore(
   // Get recent messages from all conversations
   let recentMessages: any[] = [];
   for (const conv of conversations.slice(0, 3)) { // Max 3 conversations
-    const messages = await storage.getMessagesByConversationId(conv.id);
+    const messages = await storage.getMessagesByConversationId(conv.id, userId);
     const filtered = messages.filter(m => new Date(m.createdAt) >= cutoffDate);
     recentMessages.push(...filtered);
   }
@@ -292,7 +292,7 @@ export async function generateAndPersistCategoryScore(
   // Count only user messages (not assistant responses)
   let userMessageCount = 0;
   for (const conv of conversations.slice(0, 3)) {
-    const messages = await storage.getMessagesByConversationId(conv.id);
+    const messages = await storage.getMessagesByConversationId(conv.id, userId);
     userMessageCount += messages.filter(m => 
       m.role === 'user' && new Date(m.createdAt) >= cutoffDate
     ).length;
@@ -323,41 +323,4 @@ export async function generateAndPersistCategoryScore(
   return { ...scoreResult, scoreId: persistedScore.id };
 }
 
-/**
- * Generate weekly summary score from daily scores
- * @param dailyScores - Array of daily scores from the past week
- */
-export function calculateWeeklySummary(dailyScores: number[]): {
-  weeklyScore: number;
-  trend: 'improving' | 'declining' | 'stable';
-  delta: number;
-} {
-  if (dailyScores.length === 0) {
-    return { weeklyScore: 0, trend: 'stable', delta: 0 };
-  }
-
-  // Calculate average
-  const weeklyScore = Math.round(
-    dailyScores.reduce((sum, score) => sum + score, 0) / dailyScores.length
-  );
-
-  // Determine trend (compare first half vs second half)
-  if (dailyScores.length >= 4) {
-    const midpoint = Math.floor(dailyScores.length / 2);
-    const firstHalf = dailyScores.slice(0, midpoint);
-    const secondHalf = dailyScores.slice(midpoint);
-    
-    const firstAvg = firstHalf.reduce((sum, s) => sum + s, 0) / firstHalf.length;
-    const secondAvg = secondHalf.reduce((sum, s) => sum + s, 0) / secondHalf.length;
-    
-    const delta = Math.round(secondAvg - firstAvg);
-    
-    if (delta > 3) {
-      return { weeklyScore, trend: 'improving', delta };
-    } else if (delta < -3) {
-      return { weeklyScore, trend: 'declining', delta };
-    }
-  }
-
-  return { weeklyScore, trend: 'stable', delta: 0 };
-}
+export { calculateWeeklySummary } from "./lib/analytics-utils";

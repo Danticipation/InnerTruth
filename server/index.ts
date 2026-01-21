@@ -1,9 +1,9 @@
-import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { config } from "./config";
 
 /**
  * Express entrypoint.
@@ -45,10 +45,7 @@ app.use(express.urlencoded({ extended: false, limit: "2mb" }));
  * Frontend dev server typically runs on http://localhost:5173
  * In production, you should set CORS_ORIGIN to your deployed frontend URL.
  */
-const corsOrigins = (
-  process.env.CORS_ORIGIN ||
-  "http://localhost:5173,http://127.0.0.1:5173"
-)
+const corsOrigins = config.CORS_ORIGIN
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
@@ -97,10 +94,25 @@ app.use((req, res, next) => {
   // Centralized error handler (always AFTER routes)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.use((err: any, _req: any, res: any, _next: any) => {
-    console.error("[express] unhandled error:", err);
-    const status = err?.status ?? err?.statusCode ?? 500;
+    const isProduction = app.get("env") === "production";
+    const status = err?.statusCode ?? err?.status ?? 500;
+    const code = err?.code ?? "INTERNAL_ERROR";
     const message = err?.message ?? "Internal Server Error";
-    res.status(status).json({ error: message });
+
+    console.error(`[express] error: ${err.method} ${err.path}`, {
+      status,
+      code,
+      message,
+      stack: isProduction ? undefined : err.stack,
+    });
+
+    res.status(status).json({
+      error: {
+        message: isProduction && status === 500 ? "An unexpected error occurred" : message,
+        code,
+        ...(err.details ? { details: err.details } : {}),
+      },
+    });
   });
 
   if (app.get("env") === "development") {
@@ -110,7 +122,7 @@ app.use((req, res, next) => {
   }
 
   // ALWAYS serve on PORT (default 5000). This serves both API + client.
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = config.PORT;
   server.listen(port, () => {
     console.log(`serving on port ${port}`);
   });

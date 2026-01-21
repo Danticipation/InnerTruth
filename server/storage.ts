@@ -10,16 +10,16 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   
   createConversation(userId: string): Promise<Conversation>;
-  getConversation(id: string): Promise<Conversation | undefined>;
+  getConversation(id: string, userId: string): Promise<Conversation | undefined>;
   getConversationsByUserId(userId: string): Promise<Conversation[]>;
   
   createMessage(message: InsertMessage): Promise<Message>;
-  getMessagesByConversationId(conversationId: string): Promise<Message[]>;
+  getMessagesByConversationId(conversationId: string, userId: string): Promise<Message[]>;
   
   createJournalEntry(entry: InsertJournalEntry & { userId: string }): Promise<JournalEntry>;
   getJournalEntriesByUserId(userId: string): Promise<JournalEntry[]>;
-  updateJournalEntry(id: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry>;
-  deleteJournalEntry(id: string): Promise<void>;
+  updateJournalEntry(id: string, userId: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry>;
+  deleteJournalEntry(id: string, userId: string): Promise<void>;
   
   getPersonalityInsightsByUserId(userId: string): Promise<PersonalityInsight[]>;
   createPersonalityInsight(insight: Omit<PersonalityInsight, "id" | "createdAt">): Promise<PersonalityInsight>;
@@ -109,8 +109,9 @@ export class MemStorage implements IStorage {
     return conversation;
   }
 
-  async getConversation(id: string): Promise<Conversation | undefined> {
-    return this.conversations.get(id);
+  async getConversation(id: string, userId: string): Promise<Conversation | undefined> {
+    const conv = this.conversations.get(id);
+    return conv?.userId === userId ? conv : undefined;
   }
 
   async getConversationsByUserId(userId: string): Promise<Conversation[]> {
@@ -130,7 +131,10 @@ export class MemStorage implements IStorage {
     return message;
   }
 
-  async getMessagesByConversationId(conversationId: string): Promise<Message[]> {
+  async getMessagesByConversationId(conversationId: string, userId: string): Promise<Message[]> {
+    const conv = this.conversations.get(conversationId);
+    if (!conv || conv.userId !== userId) return [];
+
     return Array.from(this.messages.values())
       .filter((msg) => msg.conversationId === conversationId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
@@ -156,10 +160,10 @@ export class MemStorage implements IStorage {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async updateJournalEntry(id: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry> {
+  async updateJournalEntry(id: string, userId: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry> {
     const existing = this.journalEntries.get(id);
-    if (!existing) {
-      throw new Error("Journal entry not found");
+    if (!existing || existing.userId !== userId) {
+      throw new Error("Journal entry not found or access denied");
     }
     const updated: JournalEntry = {
       ...existing,
@@ -170,8 +174,11 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async deleteJournalEntry(id: string): Promise<void> {
-    this.journalEntries.delete(id);
+  async deleteJournalEntry(id: string, userId: string): Promise<void> {
+    const existing = this.journalEntries.get(id);
+    if (existing && existing.userId === userId) {
+      this.journalEntries.delete(id);
+    }
   }
 
   async getPersonalityInsightsByUserId(userId: string): Promise<PersonalityInsight[]> {
@@ -320,8 +327,10 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async getConversation(id: string): Promise<Conversation | undefined> {
-    const result = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
+  async getConversation(id: string, userId: string): Promise<Conversation | undefined> {
+    const result = await db.select().from(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+      .limit(1);
     return result[0];
   }
 
@@ -336,10 +345,18 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async getMessagesByConversationId(conversationId: string): Promise<Message[]> {
-    return await db.select().from(messages)
-      .where(eq(messages.conversationId, conversationId))
+  async getMessagesByConversationId(conversationId: string, userId: string): Promise<Message[]> {
+    // Verify conversation ownership via join or subquery for robustness
+    const result = await db.select({ message: messages })
+      .from(messages)
+      .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+      .where(and(
+        eq(messages.conversationId, conversationId),
+        eq(conversations.userId, userId)
+      ))
       .orderBy(messages.createdAt);
+    
+    return result.map(r => r.message);
   }
 
   async createJournalEntry(insertEntry: InsertJournalEntry & { userId: string }): Promise<JournalEntry> {
@@ -353,21 +370,21 @@ export class PostgresStorage implements IStorage {
       .orderBy(desc(journalEntries.createdAt));
   }
 
-  async updateJournalEntry(id: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry> {
+  async updateJournalEntry(id: string, userId: string, updates: Partial<InsertJournalEntry>): Promise<JournalEntry> {
     const result = await db
       .update(journalEntries)
       .set(updates)
-      .where(eq(journalEntries.id, id))
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.userId, userId)))
       .returning();
     
     if (!result[0]) {
-      throw new Error("Journal entry not found");
+      throw new Error("Journal entry not found or access denied");
     }
     return result[0];
   }
 
-  async deleteJournalEntry(id: string): Promise<void> {
-    await db.delete(journalEntries).where(eq(journalEntries.id, id));
+  async deleteJournalEntry(id: string, userId: string): Promise<void> {
+    await db.delete(journalEntries).where(and(eq(journalEntries.id, id), eq(journalEntries.userId, userId)));
   }
 
   async getPersonalityInsightsByUserId(userId: string): Promise<PersonalityInsight[]> {
