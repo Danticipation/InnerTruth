@@ -3,5 +3,6 @@
   publish = "dist/public"
 
 [build.environment]
+  NODE_VERSION = "20.18.0"
   NPM_FLAGS = "--include=optional"
   TAILWIND_DISABLE_LIGHTNINGCSS = "1"
