@@ -5,4 +5,6 @@
 [build.environment]
   NODE_VERSION = "20.19.0"
   NPM_FLAGS = "--include=optional"
+  NPM_CONFIG_INCLUDE = "optional"
+  NPM_CONFIG_OMIT = ""
   TAILWIND_DISABLE_LIGHTNINGCSS = "1"
