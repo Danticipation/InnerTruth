@@ -51,7 +51,7 @@ InnerTruth utilizes a modern, full-stack TypeScript architecture designed for sc
 
 ## Development
 ### Prerequisites
-- Node.js (v18+)
+- Node.js (v20+)
 - PostgreSQL database
 - OpenAI API Key
 - Supabase Project (for Auth)
@@ -63,3 +63,17 @@ InnerTruth utilizes a modern, full-stack TypeScript architecture designed for sc
 3. Configure environment variables in `.env` (see `.env.example`).
 4. Push database schema: `npm run db:push`
 5. Start development server: `npm run dev`
+
+### Deployment
+The project is configured for deployment on **Netlify**.
+- **Build Command**: `npm run build`
+- **Publish Directory**: `dist/public`
+- **Configuration**: Managed via `netlify.toml` in the project root.
+
+## Environment Variables
+Ensure the following variables are set in your deployment environment:
+- `DATABASE_URL`: PostgreSQL connection string.
+- `OPENAI_API_KEY`: Your OpenAI API key.
+- `ELEVENLABS_API_KEY`: Your Eleven Labs API key (optional).
+- `JWT_SECRET`: Secret for JWT verification.
+- `SESSION_SECRET`: Secret for session management.
