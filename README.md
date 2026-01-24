@@ -71,9 +71,16 @@ The project is configured for deployment on **Netlify**.
 - **Configuration**: Managed via `netlify.toml` in the project root.
 
 ## Environment Variables
-Ensure the following variables are set in your deployment environment:
+Ensure the following variables are set in your deployment environment (Netlify UI):
+
+### Backend (Secrets)
 - `DATABASE_URL`: PostgreSQL connection string.
 - `OPENAI_API_KEY`: Your OpenAI API key.
 - `ELEVENLABS_API_KEY`: Your Eleven Labs API key (optional).
 - `JWT_SECRET`: Secret for JWT verification.
 - `SESSION_SECRET`: Secret for session management.
+
+### Frontend (Vite Environment Variables)
+- `VITE_SUPABASE_URL`: Your Supabase project URL.
+- `VITE_SUPABASE_ANON_KEY`: Your Supabase anonymous API key.
+- `VITE_API_URL`: The URL of your deployed API (optional, defaults to root).
