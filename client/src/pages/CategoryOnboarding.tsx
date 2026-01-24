@@ -65,13 +65,25 @@ export default function CategoryOnboarding() {
       });
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Update cache immediately to prevent OnboardingGuard race condition
+      queryClient.setQueryData(["/api/user-categories"], (old: any) => {
+        const existing = old || [];
+        if (existing.some((c: any) => c.categoryId === data.categoryId)) {
+          return existing;
+        }
+        return [...existing, data];
+      });
+      
       queryClient.invalidateQueries({ queryKey: ["/api/user-categories"] });
+      
       toast({
         title: "Success!",
         description: "Your improvement journey begins now.",
       });
-      setLocation("/dashboard");
+      
+      // Small delay to ensure state propagates before redirect
+      setTimeout(() => setLocation("/dashboard"), 100);
     },
     onError: (error: any) => {
       toast({

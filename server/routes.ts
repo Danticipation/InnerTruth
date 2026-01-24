@@ -626,20 +626,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TODO: Add plan limit enforcement (Free=1, Premium tiers unlock more)
       // For MVP, allow unlimited selections
 
-      const selected = await storage.selectCategory({
-        userId,
-        categoryId,
-        status: 'active',
-        baselineScore: baselineScore ?? null,
-        goalScore: goalScore ?? null
-      });
-
-      res.status(201).json(selected);
+      try {
+        const selected = await storage.selectCategory({
+          userId,
+          categoryId,
+          status: 'active',
+          baselineScore: baselineScore ?? null,
+          goalScore: goalScore ?? null
+        });
+        return res.status(201).json(selected);
+      } catch (error: any) {
+        // If already selected, treat as success (idempotent)
+        if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+          const existing = await storage.getUserSelectedCategories(userId);
+          const match = existing.find(c => c.categoryId === categoryId);
+          return res.status(200).json(match || { success: true });
+        }
+        throw error;
+      }
     } catch (error: any) {
       console.error("Error selecting category:", error);
-      if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
-        return res.status(409).json({ error: "Category already selected" });
-      }
       res.status(500).json({ error: error.message });
     }
   });

@@ -1,9 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { Link } from "wouter";
 
 import heroBg from "/assets/blurred-geometry-1.jpg";
 
 export function HeroSection() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <section className="mx-auto max-w-5xl px-6">
       <div className="relative mt-8 overflow-hidden rounded-3xl border bg-card">
@@ -37,20 +41,30 @@ export function HeroSection() {
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
-              <Button asChild size="lg" className="w-full sm:w-auto" data-testid="button-hero-cta">
-                <a href="/auth">
-                  Start your journey <ArrowRight className="ml-2 h-5 w-5" />
-                </a>
-              </Button>
+              {isAuthenticated ? (
+                <Button asChild size="lg" className="w-full sm:w-auto" data-testid="button-hero-cta">
+                  <Link href="/dashboard">
+                    Go to Dashboard <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild size="lg" className="w-full sm:w-auto" data-testid="button-hero-cta">
+                  <Link href="/auth">
+                    Start your journey <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+              )}
 
               <Button
-                asChild
                 size="lg"
                 variant="outline"
                 className="w-full sm:w-auto bg-white/10 border-white/25 text-white hover:bg-white/20"
+                onClick={() => {
+                  document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+                }}
                 data-testid="button-hero-secondary"
               >
-                <a href="#features">See features</a>
+                See features
               </Button>
             </div>
 

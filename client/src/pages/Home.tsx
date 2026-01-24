@@ -163,11 +163,11 @@ export default function Home() {
 
             {user ? (
               <div className="flex items-center gap-3">
-                <Link href="/dashboard">
-                  <Button size="sm" data-testid="button-enter-app">
+                <Button asChild size="sm" data-testid="button-enter-app">
+                  <Link href="/dashboard">
                     Enter App <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
 
                 <Button
                   variant="outline"
@@ -234,11 +234,11 @@ export default function Home() {
                   <div className="space-y-2">
                     {user ? (
                       <>
-                        <Link href="/dashboard">
-                          <Button className="w-full" data-testid="button-mobile-enter-app">
+                        <Button asChild className="w-full" data-testid="button-mobile-enter-app">
+                          <Link href="/dashboard">
                             Enter App <ArrowRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        </Link>
+                          </Link>
+                        </Button>
 
                         <Button
                           variant="outline"

@@ -1,5 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, ClipboardList, BookOpen, Brain, TrendingUp, Eye } from "lucide-react";
+import { Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 
 const features = [
   {
@@ -7,40 +9,48 @@ const features = [
     title: "AI Conversations",
     description:
       "Chat freely about your thoughts, feelings, and experiences. Our AI analyzes patterns in your communication style and emotional expression.",
+    href: "/chat",
   },
   {
     icon: ClipboardList,
     title: "Personality Questionnaires",
     description:
       "Complete comprehensive assessments covering values, behaviors, relationships, and goals to build your personality foundation.",
+    href: "/assessment",
   },
   {
     icon: BookOpen,
     title: "Digital Journaling",
     description:
       "Write daily reflections and track your inner world. AI identifies recurring themes, emotions, and growth patterns over time.",
+    href: "/journal",
   },
   {
     icon: Brain,
     title: "Deep Analysis",
     description:
       "Advanced AI creates a mirror image of your personality, revealing core traits, motivations, and behavioral patterns.",
+    href: "/reflection",
   },
   {
     icon: Eye,
     title: "Blind Spot Detection",
     description:
       "Discover aspects of yourself you weren't aware of. Uncover hidden biases, contradictions, and unconscious patterns.",
+    href: "/reflection",
   },
   {
     icon: TrendingUp,
     title: "Growth Roadmap",
     description:
       "Receive personalized insights and actionable recommendations to improve specific aspects of your life and personality.",
+    href: "/insights",
   },
 ];
 
 export function FeaturesSection() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <section className="py-16">
       <div className="mx-auto max-w-5xl px-6">
@@ -54,8 +64,8 @@ export function FeaturesSection() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => {
             const Icon = feature.icon;
-            return (
-              <Card key={index} className="hover-elevate" data-testid={`card-feature-${index}`}>
+            const content = (
+              <Card key={index} className="hover-elevate h-full cursor-pointer transition-all hover:border-primary/50" data-testid={`card-feature-${index}`}>
                 <CardHeader>
                   <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                     <Icon className="h-6 w-6 text-primary" />
@@ -66,6 +76,12 @@ export function FeaturesSection() {
                   <CardDescription className="text-base">{feature.description}</CardDescription>
                 </CardContent>
               </Card>
+            );
+
+            return (
+              <Link key={index} href={isAuthenticated ? feature.href : "/auth"}>
+                {content}
+              </Link>
             );
           })}
         </div>
