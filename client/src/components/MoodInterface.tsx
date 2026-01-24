@@ -40,13 +40,43 @@ export function MoodInterface() {
 
   const createMoodMutation = useMutation({
     mutationFn: async (entry: InsertMoodEntry) => {
-      const res = await apiRequest("POST", "/api/mood-entries", entry);
-      return res.json();
+      return await apiRequest("POST", "/api/mood-entries", entry);
     },
-    onSuccess: () => {
+    onMutate: async (newEntry) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/mood-entries"] });
+      const previousMoods = queryClient.getQueryData<MoodEntry[]>(["/api/mood-entries"]);
+
+      if (previousMoods) {
+        const optimisticEntry: MoodEntry = {
+          id: "temp-" + Date.now(),
+          userId: "default-user-id",
+          mood: newEntry.mood,
+          intensity: newEntry.intensity,
+          activities: newEntry.activities || null,
+          note: newEntry.note || null,
+          createdAt: new Date(),
+        };
+        queryClient.setQueryData<MoodEntry[]>(["/api/mood-entries"], [optimisticEntry, ...previousMoods]);
+      }
+
+      return { previousMoods };
+    },
+    onError: (err, newEntry, context) => {
+      if (context?.previousMoods) {
+        queryClient.setQueryData(["/api/mood-entries"], context.previousMoods);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to log mood. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/mood-entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/personality-reflection"] });
+    },
+    onSuccess: () => {
       setSelectedMood("");
       setIntensity([50]);
       setActivities([]);
@@ -54,13 +84,6 @@ export function MoodInterface() {
       toast({
         title: "Mood Logged",
         description: "Your mood has been tracked successfully.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to log mood. Please try again.",
-        variant: "destructive",
       });
     },
   });

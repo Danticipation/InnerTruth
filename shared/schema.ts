@@ -18,7 +18,10 @@ export const conversations = pgTable("conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("conv_user_id_idx").on(table.userId),
+  userCreatedIdx: index("conv_user_created_idx").on(table.userId, table.createdAt),
+}));
 
 export const messages = pgTable("messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -26,7 +29,10 @@ export const messages = pgTable("messages", {
   role: text("role").notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  convIdIdx: index("msg_conv_id_idx").on(table.conversationId),
+  convCreatedIdx: index("msg_conv_created_idx").on(table.conversationId, table.createdAt),
+}));
 
 export const journalEntries = pgTable("journal_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -35,7 +41,10 @@ export const journalEntries = pgTable("journal_entries", {
   prompt: text("prompt"),
   wordCount: integer("word_count").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("journal_user_id_idx").on(table.userId),
+  userCreatedIdx: index("journal_user_created_idx").on(table.userId, table.createdAt),
+}));
 
 export const personalityInsights = pgTable("personality_insights", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -45,7 +54,9 @@ export const personalityInsights = pgTable("personality_insights", {
   description: text("description").notNull(),
   priority: text("priority").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("insight_user_id_idx").on(table.userId),
+}));
 
 export const memoryFacts = pgTable("memory_facts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -59,7 +70,10 @@ export const memoryFacts = pgTable("memory_facts", {
   status: text("status").notNull().default('active'),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("fact_user_id_idx").on(table.userId),
+  userStatusIdx: index("fact_user_status_idx").on(table.userId, table.status),
+}));
 
 export const memoryFactMentions = pgTable("memory_fact_mentions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -144,10 +158,13 @@ export const categoryScores = pgTable("category_scores", {
   areasForGrowth: text("areas_for_growth").array(),
   confidenceLevel: text("confidence_level"),
   evidenceSnippets: jsonb("evidence_snippets"),
+  dynamicNudge: text("dynamic_nudge"),
   contributors: jsonb("contributors"),
   generatedAt: timestamp("generated_at").defaultNow().notNull(),
 }, (table) => ({
-  uniquePeriodScore: unique('unique_period_score').on(table.userId, table.categoryId, table.periodType, table.periodStart)
+  uniquePeriodScore: unique('unique_period_score').on(table.userId, table.categoryId, table.periodType, table.periodStart),
+  userCategoryIdx: index("score_user_category_idx").on(table.userId, table.categoryId),
+  userPeriodIdx: index("score_user_period_idx").on(table.userId, table.periodStart),
 }));
 
 export const categoryInsights = pgTable("category_insights", {

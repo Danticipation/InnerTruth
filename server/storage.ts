@@ -15,6 +15,7 @@ export interface IStorage {
   
   createMessage(message: InsertMessage): Promise<Message>;
   getMessagesByConversationId(conversationId: string, userId: string): Promise<Message[]>;
+  getMessagesByConversationIds(conversationIds: string[], userId: string): Promise<Message[]>;
   
   createJournalEntry(entry: InsertJournalEntry & { userId: string }): Promise<JournalEntry>;
   getJournalEntriesByUserId(userId: string): Promise<JournalEntry[]>;
@@ -53,6 +54,7 @@ export interface IStorage {
   createCategoryScore(score: InsertCategoryScore): Promise<CategoryScore>;
   getCategoryScores(userId: string, categoryId: string, periodType?: string, limit?: number): Promise<CategoryScore[]>;
   getLatestCategoryScore(userId: string, categoryId: string, periodType: string): Promise<CategoryScore | undefined>;
+  getLatestCategoryScoresBatch(userId: string, categoryIds: string[], periodType: string): Promise<Record<string, CategoryScore>>;
   
   createCategoryInsight(insight: InsertCategoryInsight): Promise<CategoryInsight>;
   getCategoryInsights(userId: string, categoryId: string, limit?: number): Promise<CategoryInsight[]>;
@@ -137,6 +139,15 @@ export class MemStorage implements IStorage {
 
     return Array.from(this.messages.values())
       .filter((msg) => msg.conversationId === conversationId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async getMessagesByConversationIds(conversationIds: string[], userId: string): Promise<Message[]> {
+    const userConvs = Array.from(this.conversations.values()).filter(c => c.userId === userId && conversationIds.includes(c.id));
+    const validConvIds = new Set(userConvs.map(c => c.id));
+
+    return Array.from(this.messages.values())
+      .filter((msg) => validConvIds.has(msg.conversationId))
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
@@ -291,6 +302,10 @@ export class MemStorage implements IStorage {
     return undefined;
   }
 
+  async getLatestCategoryScoresBatch(userId: string, categoryIds: string[], periodType: string): Promise<Record<string, CategoryScore>> {
+    return {};
+  }
+
   async createCategoryInsight(insight: InsertCategoryInsight): Promise<CategoryInsight> {
     throw new Error("Category tracking not supported in MemStorage");
   }
@@ -352,6 +367,21 @@ export class PostgresStorage implements IStorage {
       .innerJoin(conversations, eq(messages.conversationId, conversations.id))
       .where(and(
         eq(messages.conversationId, conversationId),
+        eq(conversations.userId, userId)
+      ))
+      .orderBy(messages.createdAt);
+    
+    return result.map(r => r.message);
+  }
+
+  async getMessagesByConversationIds(conversationIds: string[], userId: string): Promise<Message[]> {
+    if (conversationIds.length === 0) return [];
+    
+    const result = await db.select({ message: messages })
+      .from(messages)
+      .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+      .where(and(
+        drizzleSql`${messages.conversationId} IN ${conversationIds}`,
         eq(conversations.userId, userId)
       ))
       .orderBy(messages.createdAt);
@@ -597,6 +627,32 @@ export class PostgresStorage implements IStorage {
       .orderBy(desc(categoryScores.periodStart))
       .limit(1);
     return result[0];
+  }
+
+  async getLatestCategoryScoresBatch(
+    userId: string,
+    categoryIds: string[],
+    periodType: string
+  ): Promise<Record<string, CategoryScore>> {
+    if (categoryIds.length === 0) return {};
+
+    // This is a bit complex in SQL to get the latest for each category in one go
+    // We'll use a subquery or a distinct on if supported, but for portability and clarity:
+    const result = await db.select().from(categoryScores)
+      .where(and(
+        eq(categoryScores.userId, userId),
+        drizzleSql`${categoryScores.categoryId} IN ${categoryIds}`,
+        eq(categoryScores.periodType, periodType)
+      ))
+      .orderBy(desc(categoryScores.periodStart));
+
+    const latestMap: Record<string, CategoryScore> = {};
+    for (const score of result) {
+      if (!latestMap[score.categoryId]) {
+        latestMap[score.categoryId] = score;
+      }
+    }
+    return latestMap;
   }
 
   async createCategoryInsight(insight: InsertCategoryInsight): Promise<CategoryInsight> {

@@ -23,6 +23,7 @@ export interface CategoryScoreResult {
   areasForGrowth: string[];
   confidenceLevel: 'low' | 'medium' | 'high';
   evidenceSnippets: { source: string; excerpt: string; date: string }[];
+  dynamicNudge?: string; // User-specific nudge based on score and category
 }
 
 // JSON Schema for structured output
@@ -80,9 +81,13 @@ const SCORE_RESPONSE_SCHEMA = {
       minItems: 0,
       maxItems: 5,
       description: "Supporting evidence from user's journal and chat"
+    },
+    dynamicNudge: {
+      type: "string",
+      description: "A personalized, probing question or nudge based on the user's score and patterns to encourage deeper reflection."
     }
   },
-  required: ["score", "reasoning", "keyPatterns", "progressIndicators", "areasForGrowth", "confidenceLevel", "evidenceSnippets"],
+  required: ["score", "reasoning", "keyPatterns", "progressIndicators", "areasForGrowth", "confidenceLevel", "evidenceSnippets", "dynamicNudge"],
   additionalProperties: false
 };
 
@@ -116,15 +121,13 @@ export async function generateCategoryScore(
     .filter(j => new Date(j.createdAt) >= cutoffDate)
     .slice(0, 10); // Max 10 journal entries (already filtered by date)
 
-  // Get recent messages from all conversations
-  let recentMessages: any[] = [];
-  for (const conv of conversations.slice(0, 3)) { // Max 3 conversations
-    const messages = await storage.getMessagesByConversationId(conv.id, userId);
-    const filtered = messages.filter(m => new Date(m.createdAt) >= cutoffDate);
-    recentMessages.push(...filtered);
-  }
-  recentMessages = recentMessages
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  // Get recent messages from all conversations (Batch fetch to avoid N+1)
+  const convIds = conversations.slice(0, 3).map(c => c.id);
+  const allMessages = await (storage as any).getMessagesByConversationIds(convIds, userId);
+  
+  let recentMessages = allMessages
+    .filter((m: any) => new Date(m.createdAt) >= cutoffDate)
+    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 20); // Max 20 messages
 
   // Build context for AI
@@ -133,11 +136,11 @@ export async function generateCategoryScore(
     .join('\n\n');
 
   const chatContext = recentMessages
-    .map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`)
+    .map((m: any) => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`)
     .join('\n');
 
   // Check if we have enough data (count only user messages, not assistant responses)
-  const userMessageCount = recentMessages.filter(m => m.role === 'user').length;
+  const userMessageCount = recentMessages.filter((m: any) => m.role === 'user').length;
   const hasMinimumData = recentJournals.length >= 2 || userMessageCount >= 5;
   if (!hasMinimumData) {
     return {
@@ -165,9 +168,25 @@ ${category.scoringCriteria}
 FOCUS AREAS:
 ${category.chatFocusAreas.join('\n')}
 
+FEW-SHOT EXAMPLES:
+Example 1 (High Score):
+Score: 85
+Reasoning: User demonstrates consistent boundary setting and clear communication even during high-stress work conflicts.
+Patterns: Assertive "I" statements, proactive repair attempts.
+Nudge: "You've mastered assertive communication at work; how might you bring that same clarity to your relationship with your sibling?"
+
+Example 2 (Low Score):
+Score: 35
+Reasoning: User frequently suppresses needs to avoid conflict, leading to built-up resentment and passive-aggressive outbursts.
+Patterns: People-pleasing, avoidance of direct confrontation.
+Nudge: "I noticed you stayed silent when your boss added to your plate. What's the smallest 'no' you could practice this week?"
+
 Be honest and direct. The user wants the truth, not flattery. If you see concerning patterns, include them in areasForGrowth.
 
-In evidenceSnippets, include 2-5 specific quotes or paraphrases from the journal/chat that support your analysis. These should be direct examples that illustrate the patterns you've identified.
+In evidenceSnippets, include 2-5 specific quotes or paraphrases from the journal/chat that support your analysis.
+
+In dynamicNudge, provide a personalized, probing question or nudge based on the user's score and patterns. Use these potential prompts for inspiration:
+${category.journalPrompts.join('\n')}
 
 Confidence level should be:
 - "low" if there's insufficient data or contradictory signals
@@ -208,6 +227,12 @@ Generate a ${category.name} score based on this data.`;
 
     // Validate and clamp score
     result.score = Math.max(0, Math.min(100, result.score));
+
+    // Confidence Gate: If confidence is low, provide a fallback reasoning and don't trust the score
+    if (result.confidenceLevel === 'low') {
+      result.reasoning = "We're starting to see some patterns, but need more data for a definitive assessment. Keep sharing your thoughts to sharpen this insight.";
+      // We keep the score but the UI should ideally handle 'low' confidence visually
+    }
 
     return result;
 
@@ -276,6 +301,7 @@ export async function generateAndPersistCategoryScore(
       areasForGrowth: existingScore.areasForGrowth || scoreResult.areasForGrowth,
       confidenceLevel: (existingScore.confidenceLevel as any) || scoreResult.confidenceLevel,
       evidenceSnippets: (existingScore.evidenceSnippets as any) || scoreResult.evidenceSnippets,
+      dynamicNudge: existingScore.dynamicNudge || scoreResult.dynamicNudge,
       scoreId: existingScore.id
     };
   }
@@ -313,6 +339,7 @@ export async function generateAndPersistCategoryScore(
     areasForGrowth: scoreResult.areasForGrowth,
     confidenceLevel: scoreResult.confidenceLevel,
     evidenceSnippets: scoreResult.evidenceSnippets as any,
+    dynamicNudge: scoreResult.dynamicNudge,
     contributors: {
       journalCount: recentJournalCount,
       messageCount: userMessageCount,

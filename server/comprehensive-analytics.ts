@@ -111,12 +111,9 @@ export class ComprehensiveAnalytics {
       
       if (onProgress) await onProgress(10, 'Processing conversations...');
       
-      // Collect all messages from conversations
-      let allMessages: Message[] = [];
-      for (const conv of conversations) {
-        const msgs = await storage.getMessagesByConversationId(conv.id);
-        allMessages = allMessages.concat(msgs);
-      }
+      // Collect all messages from conversations (Batch fetch to avoid N+1)
+      const convIds = conversations.map(c => c.id);
+      const allMessages = await storage.getMessagesByConversationIds(convIds, userId);
 
       // Calculate statistics
       const statistics = this.calculateStatistics(

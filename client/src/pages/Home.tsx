@@ -182,15 +182,15 @@ export default function Home() {
             ) : (
               <div className="flex items-center gap-3">
                 <Button asChild variant="outline" size="sm" data-testid="button-login-outline">
-                  <a href="/api/login" aria-label="Sign in">
+                  <Link href="/auth" aria-label="Sign in">
                     Sign In
-                  </a>
+                  </Link>
                 </Button>
 
                 <Button asChild size="sm" data-testid="button-login">
-                  <a href="/api/login" aria-label="Get started">
+                  <Link href="/auth" aria-label="Get started">
                     Get Started <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
+                  </Link>
                 </Button>
               </div>
             )}
@@ -253,15 +253,15 @@ export default function Home() {
                     ) : (
                       <>
                         <Button asChild variant="outline" className="w-full" data-testid="button-mobile-signin">
-                          <a href="/api/login" aria-label="Sign in">
+                          <Link href="/auth" aria-label="Sign in">
                             Sign In
-                          </a>
+                          </Link>
                         </Button>
 
                         <Button asChild className="w-full" data-testid="button-mobile-getstarted">
-                          <a href="/api/login" aria-label="Get started">
+                          <Link href="/auth" aria-label="Get started">
                             Get Started <ArrowRight className="ml-2 h-4 w-4" />
-                          </a>
+                          </Link>
                         </Button>
                       </>
                     )}

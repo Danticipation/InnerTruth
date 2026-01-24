@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield } from "lucide-react";
+import { Link } from "wouter";
 
 export function CTASection() {
   return (
@@ -11,14 +12,17 @@ export function CTASection() {
         <p className="text-lg mb-8 opacity-90">
           Start your journey to self-discovery today. No commitments, just honest insights.
         </p>
-        
-        <Button 
-          size="lg" 
+
+        <Button
+          asChild
+          size="lg"
           variant="secondary"
           className="px-8 py-6 text-lg mb-8"
           data-testid="button-get-started"
         >
-          Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+          <Link href="/auth">
+            Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
+          </Link>
         </Button>
         
         <div className="flex items-center justify-center gap-2 text-sm opacity-80">

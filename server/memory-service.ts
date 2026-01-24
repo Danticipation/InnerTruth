@@ -218,25 +218,42 @@ Prioritize quality over quantity. Go deep.`
 
   async getMemoryContext(userId: string, limit: number = 20): Promise<string> {
     const facts = await storage.getMemoryFactsByUserId(userId, limit);
+    const selectedCategories = await storage.getUserSelectedCategories(userId);
     
-    if (facts.length === 0) {
-      return "No established memories about this user yet.";
-    }
+    let context = "## Known Facts & Psychological Profile:\n\n";
 
-    const factsByCategory: Record<string, string[]> = {};
-    
-    for (const fact of facts) {
-      if (!factsByCategory[fact.category]) {
-        factsByCategory[fact.category] = [];
+    if (facts.length > 0) {
+      const factsByCategory: Record<string, string[]> = {};
+      for (const fact of facts) {
+        if (!factsByCategory[fact.category]) {
+          factsByCategory[fact.category] = [];
+        }
+        factsByCategory[fact.category].push(`${fact.factContent} (Level: ${fact.abstractionLevel}, Confidence: ${fact.confidence}%)`);
       }
-      factsByCategory[fact.category].push(`${fact.factContent} (confidence: ${fact.confidence}%)`);
+
+      for (const [category, categoryFacts] of Object.entries(factsByCategory)) {
+        context += `**${category.replace(/_/g, " ").toUpperCase()}:**\n`;
+        context += categoryFacts.map(f => `- ${f}`).join("\n") + "\n\n";
+      }
+    } else {
+      context += "No established memories about this user yet.\n\n";
     }
 
-    let context = "## Known Facts About User:\n\n";
-    
-    for (const [category, categoryFacts] of Object.entries(factsByCategory)) {
-      context += `**${category.replace(/_/g, " ").toUpperCase()}:**\n`;
-      context += categoryFacts.map(f => `- ${f}`).join("\n") + "\n\n";
+    // Integrate Category Scores and Nudges
+    if (selectedCategories.length > 0) {
+      context += "## Current Focus Areas & Scores:\n";
+      const categoryIds = selectedCategories.map(c => c.categoryId);
+      const latestScores = await storage.getLatestCategoryScoresBatch(userId, categoryIds, 'daily');
+      
+      for (const cat of selectedCategories) {
+        const score = latestScores[cat.categoryId];
+        if (score) {
+          context += `- **${cat.categoryId}**: Score ${score.score}/100. Reasoning: ${score.reasoning}\n`;
+          if (score.dynamicNudge) {
+            context += `  *Active Nudge*: ${score.dynamicNudge}\n`;
+          }
+        }
+      }
     }
 
     return context;

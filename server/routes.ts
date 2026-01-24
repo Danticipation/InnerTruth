@@ -161,7 +161,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         try {
-          const insight = await aiService.analyzeJournalInsight(entriesText, conversationContext);
+          const memoryContext = await memoryService.getMemoryContext(userId);
+          const insight = await aiService.analyzeJournalInsight(entriesText, conversationContext, memoryContext);
           
           if (insight.title && insight.description) {
             await storage.createPersonalityInsight({
@@ -256,7 +257,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `[${new Date(e.createdAt).toLocaleDateString()}] ${e.content.substring(0, 500)}`
       ).join("\n\n---\n\n");
       
-      const result = await aiService.performFullAnalysis(conversationText, journalText);
+      const memoryContext = await memoryService.getMemoryContext(userId);
+      const result = await aiService.performFullAnalysis(conversationText, journalText, memoryContext);
       res.json(result);
     } catch (error: any) {
       next(error);
@@ -578,23 +580,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/user-categories - Get user's selected categories with latest scores
-  app.get("/api/user-categories", requireAuth, async (req: AuthedRequest, res: Response) => {
+  app.get("/api/user-categories", requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
       const selectedCategories = await storage.getUserSelectedCategories(userId);
       
-      // Enrich with latest scores
-      const enrichedCategories = await Promise.all(
-        selectedCategories.map(async (cat) => {
-          const latestDaily = await storage.getLatestCategoryScore(userId, cat.categoryId, 'daily');
-          const latestWeekly = await storage.getLatestCategoryScore(userId, cat.categoryId, 'weekly');
-          return {
-            ...cat,
-            latestDailyScore: latestDaily,
-            latestWeeklyScore: latestWeekly
-          };
-        })
-      );
+      if (selectedCategories.length === 0) {
+        return res.json([]);
+      }
+
+      const categoryIds = selectedCategories.map(c => c.categoryId);
+      
+      // Batch fetch latest scores to avoid N+1
+      const [latestDailyScores, latestWeeklyScores] = await Promise.all([
+        storage.getLatestCategoryScoresBatch(userId, categoryIds, 'daily'),
+        storage.getLatestCategoryScoresBatch(userId, categoryIds, 'weekly')
+      ]);
+
+      const enrichedCategories = selectedCategories.map(cat => ({
+        ...cat,
+        latestDailyScore: latestDailyScores[cat.categoryId] || null,
+        latestWeeklyScore: latestWeeklyScores[cat.categoryId] || null
+      }));
 
       res.json(enrichedCategories);
     } catch (error: any) {

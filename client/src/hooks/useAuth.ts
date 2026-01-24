@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { queryClient, SESSION_QUERY_KEY } from "@/lib/queryClient";
 
 export interface User {
   id: string;
@@ -40,19 +41,24 @@ export function useAuth(): AuthContextType {
       setIsLoading(true);
       setError(null);
 
-      const { data, error } = await supabase.auth.getSession();
+      // Use queryClient to get cached session or fetch new one
+      const session = await queryClient.fetchQuery({
+        queryKey: SESSION_QUERY_KEY,
+        queryFn: async () => {
+          const { data, error } = await supabase.auth.getSession();
+          if (error) throw error;
+          return data.session;
+        },
+        staleTime: 1000 * 60 * 5,
+      }).catch(err => {
+        if (mounted) setError(err.message);
+        return null;
+      });
+
       if (!mounted) return;
 
-      if (error) {
-        setError(error.message);
-        setSession(null);
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-
-      setSession(data.session ?? null);
-      setUser(mapUser(data.session?.user ?? null));
+      setSession(session);
+      setUser(mapUser(session?.user ?? null));
       setIsLoading(false);
     };
 
@@ -62,6 +68,8 @@ export function useAuth(): AuthContextType {
       (_event, newSession) => {
         setSession(newSession);
         setUser(mapUser(newSession?.user ?? null));
+        // Sync with queryClient session cache
+        queryClient.setQueryData(SESSION_QUERY_KEY, newSession);
       }
     );
 

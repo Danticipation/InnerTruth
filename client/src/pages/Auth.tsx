@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
+import { queryClient, SESSION_QUERY_KEY } from "@/lib/queryClient";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,9 +28,18 @@ export default function AuthPage() {
 
   useEffect(() => {
     // If user is already signed in, bounce to dashboard.
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setLocation("/dashboard");
-    });
+    // Use queryClient to get cached session or fetch new one
+    queryClient.fetchQuery({
+      queryKey: SESSION_QUERY_KEY,
+      queryFn: async () => {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        return data.session;
+      },
+      staleTime: 1000 * 60 * 5,
+    }).then((session) => {
+      if (session) setLocation("/dashboard");
+    }).catch(console.error);
   }, [setLocation]);
 
   async function handleMagicLink() {

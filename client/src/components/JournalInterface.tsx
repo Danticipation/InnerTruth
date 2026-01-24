@@ -68,20 +68,49 @@ export function JournalInterface() {
   });
 
   const saveEntryMutation = useMutation({
-    mutationFn: async () => {
-      const wordCount = entry.split(/\s+/).filter(w => w).length;
-      const res = await apiRequest("POST", "/api/journal-entries", {
+    mutationFn: async (newEntry: { content: string; prompt: string | null }) => {
+      const wordCount = newEntry.content.split(/\s+/).filter(w => w).length;
+      return await apiRequest("POST", "/api/journal-entries", {
         userId: "default-user-id",
-        content: entry,
-        prompt: selectedPrompt,
+        content: newEntry.content,
+        prompt: newEntry.prompt,
         wordCount
       });
-      return res.json();
     },
-    onSuccess: () => {
+    onMutate: async (newEntry) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/journal-entries"] });
+      const previousEntries = queryClient.getQueryData<JournalEntry[]>(["/api/journal-entries"]);
+      
+      if (previousEntries) {
+        const optimisticEntry: JournalEntry = {
+          id: "temp-" + Date.now(),
+          userId: "default-user-id",
+          content: newEntry.content,
+          prompt: newEntry.prompt,
+          wordCount: newEntry.content.split(/\s+/).filter(w => w).length,
+          createdAt: new Date(),
+        };
+        queryClient.setQueryData<JournalEntry[]>(["/api/journal-entries"], [optimisticEntry, ...previousEntries]);
+      }
+      
+      return { previousEntries };
+    },
+    onError: (err, newEntry, context) => {
+      if (context?.previousEntries) {
+        queryClient.setQueryData(["/api/journal-entries"], context.previousEntries);
+      }
+      toast({
+        title: "Error saving entry",
+        description: "Your changes couldn't be saved. Please try again.",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
+    },
+    onSuccess: () => {
       toast({
         title: "Entry saved",
         description: "Your journal entry has been saved and analyzed."
@@ -94,14 +123,40 @@ export function JournalInterface() {
   const updateEntryMutation = useMutation({
     mutationFn: async ({ id, content }: { id: string; content: string }) => {
       const wordCount = content.split(/\s+/).filter(w => w).length;
-      const res = await apiRequest("PUT", `/api/journal-entries/${id}`, {
+      return await apiRequest("PUT", `/api/journal-entries/${id}`, {
         content,
         wordCount
       });
-      return res.json();
+    },
+    onMutate: async (updatedEntry) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/journal-entries"] });
+      const previousEntries = queryClient.getQueryData<JournalEntry[]>(["/api/journal-entries"]);
+      
+      if (previousEntries) {
+        queryClient.setQueryData<JournalEntry[]>(
+          ["/api/journal-entries"],
+          previousEntries.map(old => 
+            old.id === updatedEntry.id ? { ...old, content: updatedEntry.content } : old
+          )
+        );
+      }
+      
+      return { previousEntries };
+    },
+    onError: (err, updatedEntry, context) => {
+      if (context?.previousEntries) {
+        queryClient.setQueryData(["/api/journal-entries"], context.previousEntries);
+      }
+      toast({
+        title: "Update failed",
+        description: "Could not update the entry. Please try again.",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
       toast({
         title: "Entry updated",
         description: "Your journal entry has been updated."
@@ -113,12 +168,36 @@ export function JournalInterface() {
 
   const deleteEntryMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest("DELETE", `/api/journal-entries/${id}`);
-      return res.json();
+      return await apiRequest("DELETE", `/api/journal-entries/${id}`);
     },
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/journal-entries"] });
+      const previousEntries = queryClient.getQueryData<JournalEntry[]>(["/api/journal-entries"]);
+      
+      if (previousEntries) {
+        queryClient.setQueryData<JournalEntry[]>(
+          ["/api/journal-entries"],
+          previousEntries.filter(entry => entry.id !== id)
+        );
+      }
+      
+      return { previousEntries };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousEntries) {
+        queryClient.setQueryData(["/api/journal-entries"], context.previousEntries);
+      }
+      toast({
+        title: "Delete failed",
+        description: "Could not delete the entry. Please try again.",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/journal-entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onSuccess: () => {
       toast({
         title: "Entry deleted",
         description: "Your journal entry has been deleted."
@@ -129,7 +208,7 @@ export function JournalInterface() {
 
   const handleSave = () => {
     if (!entry.trim()) return;
-    saveEntryMutation.mutate();
+    saveEntryMutation.mutate({ content: entry, prompt: selectedPrompt });
   };
 
   const handleSpeakEntry = (entryId: string, content: string) => {

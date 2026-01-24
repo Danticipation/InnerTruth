@@ -1,4 +1,6 @@
 import React from 'react';
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 
 export function PricingSection() {
   return (
@@ -19,9 +21,9 @@ export function PricingSection() {
               <li>Feature A</li>
               <li>Feature B</li>
             </ul>
-            <button className="mt-8 w-full rounded-md bg-primary px-4 py-2 text-white">
-              Get Started
-            </button>
+            <Button asChild className="mt-8 w-full">
+              <Link href="/auth">Get Started</Link>
+            </Button>
           </div>
           {/* More pricing cards */}
         </div>
