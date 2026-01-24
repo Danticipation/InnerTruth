@@ -34,7 +34,7 @@ async function triggerCategoryScoring(userId: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth endpoint - check if user is authenticated
+  // Auth endpoint - check if user is logged in
   app.get('/api/auth/user', requireAuth, async (req: AuthedRequest, res: Response, next) => {
     try {
       const userId = req.user!.id;
@@ -80,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const validatedData = insertMessageSchema.parse(req.body);
       
-      // Verify conversation belongs to authenticated user
+      // Verify conversation belongs to logged in user
       const conversation = await storage.getConversation(validatedData.conversationId, userId);
       if (!conversation) {
         throw new ForbiddenError("Conversation not found or access denied");
@@ -117,7 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       
-      // Verify conversation belongs to authenticated user
+      // Verify conversation belongs to logged in user
       const conversation = await storage.getConversation(req.params.conversationId, userId);
       if (!conversation) {
         throw new ForbiddenError("Conversation not found or access denied");
