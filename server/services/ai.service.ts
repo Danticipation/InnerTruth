@@ -81,6 +81,16 @@ DISCLAIMER: I am an AI, not a therapist. These insights are for self-reflection 
         max_tokens: 500,
       });
 
+      // Log AI usage for monitoring
+      if (completion.usage) {
+        console.log(`[AI-USAGE] Chat completion for user ${userId}:`, {
+          prompt_tokens: completion.usage.prompt_tokens,
+          completion_tokens: completion.usage.completion_tokens,
+          total_tokens: completion.usage.total_tokens,
+          model: completion.model
+        });
+      }
+
       return completion.choices[0].message.content || "I'm here to listen. Please continue.";
     } catch (error: any) {
       console.error("[AI-SERVICE] Chat generation failed:", error);
@@ -130,6 +140,16 @@ DISCLAIMER: AI-generated insight, not therapy.`;
         temperature: 0.8,
         response_format: { type: "json_object" }
       });
+
+      // Log AI usage for monitoring
+      if (analysis.usage) {
+        console.log(`[AI-USAGE] Journal analysis:`, {
+          prompt_tokens: analysis.usage.prompt_tokens,
+          completion_tokens: analysis.usage.completion_tokens,
+          total_tokens: analysis.usage.total_tokens,
+          model: analysis.model
+        });
+      }
 
       return JSON.parse(analysis.choices[0].message.content || "{}");
     } catch (error: any) {
@@ -181,6 +201,16 @@ DISCLAIMER: AI-generated analysis, not therapy.`;
         temperature: 0.7,
         response_format: { type: "json_object" }
       });
+
+      // Log AI usage for monitoring
+      if (analysis.usage) {
+        console.log(`[AI-USAGE] Full analysis:`, {
+          prompt_tokens: analysis.usage.prompt_tokens,
+          completion_tokens: analysis.usage.completion_tokens,
+          total_tokens: analysis.usage.total_tokens,
+          model: analysis.model
+        });
+      }
 
       return JSON.parse(analysis.choices[0].message.content || "{}");
     } catch (error: any) {

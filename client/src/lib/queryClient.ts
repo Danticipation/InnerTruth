@@ -1,4 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
+import { persistQueryClient } from "@tanstack/react-query-persist-client";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { supabase } from "./supabase";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -138,11 +140,24 @@ export const queryClient = new QueryClient({
         if (error?.status === 401) return false;
         return failureCount < 1;
       },
-      staleTime: 1000 * 10,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours
       refetchOnWindowFocus: true, // Set to true to help keep auth state fresh
     },
     mutations: {
       retry: 1, // Allow one retry for mutations to handle transient network glitches
     },
   },
+});
+
+// Persistence configuration for offline support
+const localStoragePersister = createSyncStoragePersister({
+  storage: window.localStorage,
+  key: 'INNER_TRUTH_OFFLINE_CACHE',
+});
+
+persistQueryClient({
+  queryClient,
+  persister: localStoragePersister,
+  maxAge: 1000 * 60 * 60 * 24, // 24 hours
 });
