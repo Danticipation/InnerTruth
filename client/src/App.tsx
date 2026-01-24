@@ -33,7 +33,7 @@ function Router() {
     );
   }
 
-  // Unauthenticated users get the public landing experience
+  // Guests get the public landing experience
   if (!isAuthenticated) {
     return (
       <Switch>

@@ -34,8 +34,8 @@ const JWKS = JWKS_URL ? createRemoteJWKSet(JWKS_URL) : null;
 // Supabase issuer is always: `${SUPABASE_URL}/auth/v1`
 const ISSUER = SUPABASE_URL ? `${SUPABASE_URL.replace(/\/$/, "")}/auth/v1` : null;
 
-// Supabase access tokens normally use aud=authenticated
-const AUDIENCE = process.env.SUPABASE_JWT_AUD || "authenticated";
+// Supabase access tokens normally use aud matches the env var
+const AUDIENCE = process.env.SUPABASE_JWT_AUD;
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
