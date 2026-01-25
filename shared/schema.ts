@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, jsonb, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, jsonb, index, unique, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -122,6 +122,7 @@ export const personalityReflections = pgTable("personality_reflections", {
   blindSpots: text("blind_spots").array().notNull().default([]),
   valuesAndBeliefs: text("values_and_beliefs").array().notNull().default([]),
   therapeuticInsights: text("therapeutic_insights").array().notNull().default([]),
+  metaReflections: text("meta_reflections").array().notNull().default([]),
   holyShitMoment: text("holy_shit_moment"),
   growthLeveragePoint: text("growth_leverage_point"),
   statistics: jsonb("statistics"),
@@ -176,6 +177,24 @@ export const categoryInsights = pgTable("category_insights", {
   keyPatterns: text("key_patterns").array().notNull(),
   recommendedActions: text("recommended_actions").array().notNull(),
   severity: text("severity"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const userFeedback = pgTable("user_feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  targetType: text("target_type").notNull(), // 'insight', 'reflection', 'category_score'
+  targetId: varchar("target_id").notNull(),
+  isAccurate: boolean("is_accurate").notNull(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const analyticsEvents = pgTable("analytics_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),
+  eventType: text("event_type").notNull(), // 'conversion_start', 'conversion_complete', 'tier_limit_reached', 'premium_feature_click'
+  eventData: jsonb("event_data"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -251,6 +270,17 @@ export const insertCategoryInsightSchema = createInsertSchema(categoryInsights).
   createdAt: true,
 });
 
+export const insertUserFeedbackSchema = createInsertSchema(userFeedback).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
@@ -265,6 +295,8 @@ export type PersonalityReflection = typeof personalityReflections.$inferSelect;
 export type UserSelectedCategory = typeof userSelectedCategories.$inferSelect;
 export type CategoryScore = typeof categoryScores.$inferSelect;
 export type CategoryInsight = typeof categoryInsights.$inferSelect;
+export type UserFeedback = typeof userFeedback.$inferSelect;
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
 export type InsertMemoryFact = Omit<typeof memoryFacts.$inferInsert, "id" | "createdAt" | "updatedAt">;
@@ -275,3 +307,5 @@ export type InsertPersonalityReflection = z.infer<typeof insertPersonalityReflec
 export type InsertUserSelectedCategory = z.infer<typeof insertUserSelectedCategorySchema>;
 export type InsertCategoryScore = z.infer<typeof insertCategoryScoreSchema>;
 export type InsertCategoryInsight = z.infer<typeof insertCategoryInsightSchema>;
+export type InsertUserFeedback = z.infer<typeof insertUserFeedbackSchema>;
+export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;

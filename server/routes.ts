@@ -1,7 +1,7 @@
 import type { Express, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMessageSchema, insertJournalEntrySchema, insertMoodEntrySchema, type Message } from "@shared/schema";
+import { insertMessageSchema, insertJournalEntrySchema, insertMoodEntrySchema, insertUserFeedbackSchema, insertAnalyticsEventSchema, type Message } from "@shared/schema";
 import { aiService } from "./services/ai.service";
 import { memoryService } from "./memory-service";
 import { requireAuth, type AuthedRequest } from "./auth";
@@ -375,6 +375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         blindSpots: profile.blindSpots || [],
         valuesAndBeliefs: profile.valuesAndBeliefs || [],
         therapeuticInsights: profile.therapeuticInsights || [],
+        metaReflections: profile.metaReflections || [],
         holyShitMoment: profile.holyShitMoment || null,
         growthLeveragePoint: profile.growthLeveragePoint || null,
         statistics: profile.statistics,
@@ -438,6 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         blindSpots: [],
         valuesAndBeliefs: [],
         therapeuticInsights: [],
+        metaReflections: [],
         holyShitMoment: null,
         growthLeveragePoint: null,
         statistics: null,
@@ -752,6 +754,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(insights);
     } catch (error: any) {
       console.error("Error fetching category insights:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== USER FEEDBACK ENDPOINTS =====
+  app.post("/api/feedback", requireAuth, async (req: AuthedRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const validatedData = insertUserFeedbackSchema.parse(req.body);
+      const feedback = await storage.createUserFeedback({ ...validatedData, userId });
+      res.status(201).json(feedback);
+    } catch (error: any) {
+      console.error("Error creating feedback:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== ANALYTICS ENDPOINTS =====
+  app.post("/api/analytics/events", requireAuth, async (req: AuthedRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const validatedData = insertAnalyticsEventSchema.parse(req.body);
+      const event = await storage.createAnalyticsEvent({ ...validatedData, userId });
+      res.status(201).json(event);
+    } catch (error: any) {
+      console.error("Error creating analytics event:", error);
       res.status(500).json({ error: error.message });
     }
   });

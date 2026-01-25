@@ -32,6 +32,7 @@ interface ComprehensiveProfile {
   blindSpots: string[];
   valuesAndBeliefs: string[];
   therapeuticInsights: string[];
+  metaReflections: string[];
   holyShitMoment?: string;
   growthLeveragePoint?: string;
   statistics: {
@@ -281,6 +282,7 @@ export class ComprehensiveAnalytics {
       blindSpots: [],
       valuesAndBeliefs: [],
       therapeuticInsights: [],
+      metaReflections: [],
       holyShitMoment: null,
       growthLeveragePoint: null
     };
@@ -372,9 +374,13 @@ export class ComprehensiveAnalytics {
       }
     }
     
-    // Generate holy shit moment and leverage point for premium tier
+    // Generate meta-reflections and holy shit moment for premium tier
     if (TIER_CONFIG[tier].includesHolyShit) {
-      if (onProgress) await onProgress(90, 'Synthesizing your "Holy Shit" moment...');
+      if (onProgress) await onProgress(88, 'Generating meta-reflections...');
+      const metaReflections = await this.generateMetaReflections(context, profile);
+      profile.metaReflections = metaReflections;
+
+      if (onProgress) await onProgress(92, 'Synthesizing your "Holy Shit" moment...');
       const holyShit = await this.generateHolyShitMoment(context, profile);
       profile.holyShitMoment = holyShit.holyShitMoment;
       profile.growthLeveragePoint = holyShit.growthLeveragePoint;
@@ -970,6 +976,36 @@ Return JSON:
     }
     
     return unique;
+  }
+
+  private async generateMetaReflections(context: any, profile: any): Promise<string[]> {
+    const prompt = `Analyze the correlations between different psychological patterns identified in the analysis. Look for "meta-reflections" that connect disparate data points.
+
+INSIGHTS GENERATED:
+${JSON.stringify(profile, null, 2)}
+
+DATA CONTEXT:
+${context.crossSourceSummary}
+
+TASK:
+Generate 5-8 "meta-reflections" that identify deep correlations. 
+Example: "Your low authenticity scores in relationships (Category X) correlate directly with high people-pleasing behaviors when faced with authority figures (Category Y)—evidence from journals 3/15 and 3/22."
+
+Return JSON: {"metaReflections": ["reflection 1", "reflection 2", ... 5-8 total]}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a master psychologist identifying deep correlations across personality data." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.8,
+      max_tokens: 1500,
+      response_format: { type: "json_object" }
+    });
+
+    const result = this.parseAIResponse(response.choices[0].message.content || "{}");
+    return result.metaReflections || [];
   }
 
   private async generateHolyShitMoment(context: any, profile: any) {

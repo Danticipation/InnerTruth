@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Brain, TrendingUp, Eye, Heart, Target, Lightbulb, Shield, Sparkles, RefreshCw, Loader2, Users, Zap, CheckCircle2, Volume2, VolumeX, AlertTriangle, Rocket } from "lucide-react";
+import { Brain, TrendingUp, Eye, Heart, Target, Lightbulb, Shield, Sparkles, RefreshCw, Loader2, Users, Zap, CheckCircle2, Volume2, VolumeX, AlertTriangle, Rocket, ThumbsUp, ThumbsDown } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +45,7 @@ type PersonalityReflection = {
   blindSpots: string[];
   valuesAndBeliefs: string[];
   therapeuticInsights: string[];
+  metaReflections: string[];
   holyShitMoment?: string | null;
   growthLeveragePoint?: string | null;
   statistics: {
@@ -103,6 +104,65 @@ const Big5TraitBar = ({ label, value }: { label: string; value: number }) => {
           style={{ width: `${value}%` }}
         />
       </div>
+    </div>
+  );
+};
+
+const FeedbackButtons = ({ targetType, targetId }: { targetType: string; targetId: string }) => {
+  const [feedback, setFeedback] = useState<'accurate' | 'inaccurate' | null>(null);
+  const { toast } = useToast();
+
+  const submitFeedback = async (isAccurate: boolean) => {
+    try {
+      await apiRequest("POST", "/api/feedback", {
+        targetType,
+        targetId,
+        isAccurate,
+      });
+      setFeedback(isAccurate ? 'accurate' : 'inaccurate');
+      toast({
+        title: "Feedback Received",
+        description: "Thank you for helping us refine our AI insights!",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit feedback.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (feedback) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <CheckCircle2 className="h-3 w-3 text-green-500" />
+        Feedback recorded
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground">Was this accurate?</span>
+      <Button 
+        size="icon" 
+        variant="ghost" 
+        className="h-6 w-6" 
+        onClick={() => submitFeedback(true)}
+        title="Accurate"
+      >
+        <ThumbsUp className="h-3 w-3" />
+      </Button>
+      <Button 
+        size="icon" 
+        variant="ghost" 
+        className="h-6 w-6" 
+        onClick={() => submitFeedback(false)}
+        title="Inaccurate"
+      >
+        <ThumbsDown className="h-3 w-3" />
+      </Button>
     </div>
   );
 };
@@ -230,10 +290,22 @@ export default function PersonalityReflection() {
 
   const generateMutation = useMutation({
     mutationFn: async (): Promise<PersonalityReflection> => {
+      // Track conversion start
+      await apiRequest("POST", "/api/analytics/events", {
+        eventType: 'conversion_start',
+        eventData: { tier: selectedTier }
+      });
+
       const response = await apiRequest("POST", "/api/personality-reflection", { tier: selectedTier });
       return response.json() as Promise<PersonalityReflection>;
     },
-    onSuccess: (data: PersonalityReflection) => {
+    onSuccess: async (data: PersonalityReflection) => {
+      // Track conversion complete
+      await apiRequest("POST", "/api/analytics/events", {
+        eventType: 'conversion_complete',
+        eventData: { tier: selectedTier, reflectionId: data.id }
+      });
+
       // If job is pending or processing, start polling
       if (data.status === 'pending' || data.status === 'processing') {
         setActiveJobId(data.id);
@@ -1084,16 +1156,68 @@ ${reflection.summary}
           <CardContent>
             <ul className="space-y-4">
               {reflection.therapeuticInsights.map((insight, i) => (
-                <li key={i} className="flex items-start gap-3 p-4 rounded-md bg-purple-500/5 border border-purple-500/20">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-xs font-bold text-purple-700 dark:text-purple-300">
-                    {i + 1}
+                <li key={i} className="space-y-2">
+                  <div className="flex items-start gap-3 p-4 rounded-md bg-purple-500/5 border border-purple-500/20">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-xs font-bold text-purple-700 dark:text-purple-300">
+                      {i + 1}
+                    </div>
+                    <span className="text-sm leading-relaxed">{insight}</span>
                   </div>
-                  <span className="text-sm leading-relaxed">{insight}</span>
+                  <div className="flex justify-end px-2">
+                    <FeedbackButtons targetType="therapeutic_insight" targetId={`${reflection.id}-insight-${i}`} />
+                  </div>
                 </li>
               ))}
             </ul>
           </CardContent>
         </Card>
+
+        {/* Meta-Reflections */}
+        {reflection.metaReflections && reflection.metaReflections.length > 0 && (
+          <Card className="border-2 border-blue-500/20">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-blue-500" />
+                    Meta-Reflections
+                  </CardTitle>
+                  <CardDescription>Correlations across your personality data</CardDescription>
+                </div>
+                <Button
+                  size="icon"
+                  variant={playingSection === 'meta' ? "default" : "ghost"}
+                  onClick={() => handlePlaySection('meta', `Meta-Reflections:\n${reflection.metaReflections.map((r, i) => `${i + 1}. ${r}`).join('\n')}`)}
+                  data-testid="button-play-meta"
+                  title={playingSection === 'meta' ? "Stop reading" : "Read aloud"}
+                >
+                  {playingSection === 'meta' && isSpeaking ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-4">
+                {reflection.metaReflections.map((reflection_item, i) => (
+                  <li key={i} className="space-y-2">
+                    <div className="flex items-start gap-3 p-4 rounded-md bg-blue-500/5 border border-blue-500/20">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-700 dark:text-blue-300">
+                        {i + 1}
+                      </div>
+                      <span className="text-sm leading-relaxed">{reflection_item}</span>
+                    </div>
+                    <div className="flex justify-end px-2">
+                      <FeedbackButtons targetType="meta_reflection" targetId={`${reflection.id}-meta-${i}`} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Holy Shit Moment - THE core revelation */}
         {reflection.holyShitMoment && (
@@ -1126,9 +1250,12 @@ ${reflection.summary}
               <div className="p-6 rounded-md bg-red-500/10 border border-red-500/30">
                 <p className="text-base leading-relaxed font-medium">{reflection.holyShitMoment}</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-3 italic">
-                This insight connects the underlying patterns across all your behavioral, emotional, and relational dynamics.
-              </p>
+              <div className="flex items-center justify-between mt-3">
+                <p className="text-xs text-muted-foreground italic">
+                  This insight connects the underlying patterns across all your behavioral, emotional, and relational dynamics.
+                </p>
+                <FeedbackButtons targetType="holy_shit_moment" targetId={reflection.id} />
+              </div>
             </CardContent>
           </Card>
         )}

@@ -53,7 +53,7 @@ export default function CategoryOnboarding() {
   const maxCategories = tierLimits[currentTier as keyof typeof tierLimits];
 
   // Fetch available categories
-  const { data: categories, isLoading } = useQuery({
+  const { data: categories, isLoading } = useQuery<any[]>({
     queryKey: ["/api/categories"],
   });
 
@@ -95,11 +95,27 @@ export default function CategoryOnboarding() {
   });
 
   const handleCategoryToggle = (categoryId: string) => {
+    const category = categories?.find((c: any) => c.id === categoryId);
+    
+    // Track click on premium category
+    if (category?.isPremium) {
+      apiRequest("POST", "/api/analytics/events", {
+        eventType: 'premium_feature_click',
+        eventData: { feature: 'premium_category', categoryId }
+      }).catch(console.error);
+    }
+
     setSelectedCategories(prev => {
       if (prev.includes(categoryId)) {
         return prev.filter(id => id !== categoryId);
       } else {
         if (prev.length >= maxCategories) {
+          // Track limit reached
+          apiRequest("POST", "/api/analytics/events", {
+            eventType: 'tier_limit_reached',
+            eventData: { limit: 'category_selection', currentTier }
+          }).catch(console.error);
+
           toast({
             variant: "destructive",
             title: "Category limit reached",

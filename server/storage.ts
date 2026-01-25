@@ -1,7 +1,7 @@
-import { type User, type UpsertUser, type Message, type InsertMessage, type JournalEntry, type InsertJournalEntry, type Conversation, type PersonalityInsight, type MemoryFact, type InsertMemoryFact, type MemoryFactMention, type InsertMemoryFactMention, type MemorySnapshot, type InsertMemorySnapshot, type MoodEntry, type InsertMoodEntry, type PersonalityReflection, type InsertPersonalityReflection, type UserSelectedCategory, type InsertUserSelectedCategory, type CategoryScore, type InsertCategoryScore, type CategoryInsight, type InsertCategoryInsight } from "@shared/schema";
+import { type User, type UpsertUser, type Message, type InsertMessage, type JournalEntry, type InsertJournalEntry, type Conversation, type PersonalityInsight, type MemoryFact, type InsertMemoryFact, type MemoryFactMention, type InsertMemoryFactMention, type MemorySnapshot, type InsertMemorySnapshot, type MoodEntry, type InsertMoodEntry, type PersonalityReflection, type InsertPersonalityReflection, type UserSelectedCategory, type InsertUserSelectedCategory, type CategoryScore, type InsertCategoryScore, type CategoryInsight, type InsertCategoryInsight, type UserFeedback, type InsertUserFeedback, type AnalyticsEvent, type InsertAnalyticsEvent } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { users, conversations, messages, journalEntries, personalityInsights, memoryFacts, memoryFactMentions, memorySnapshots, moodEntries, personalityReflections, userSelectedCategories, categoryScores, categoryInsights } from "@shared/schema";
+import { users, conversations, messages, journalEntries, personalityInsights, memoryFacts, memoryFactMentions, memorySnapshots, moodEntries, personalityReflections, userSelectedCategories, categoryScores, categoryInsights, userFeedback, analyticsEvents } from "@shared/schema";
 import { eq, desc, and, sql as drizzleSql } from "drizzle-orm";
 
 export interface IStorage {
@@ -58,6 +58,12 @@ export interface IStorage {
   
   createCategoryInsight(insight: InsertCategoryInsight): Promise<CategoryInsight>;
   getCategoryInsights(userId: string, categoryId: string, limit?: number): Promise<CategoryInsight[]>;
+
+  createUserFeedback(feedback: InsertUserFeedback & { userId: string }): Promise<UserFeedback>;
+  getUserFeedbackByTarget(targetType: string, targetId: string): Promise<UserFeedback[]>;
+
+  createAnalyticsEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent>;
+  getAnalyticsEventsByUser(userId: string, eventType?: string): Promise<AnalyticsEvent[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -311,6 +317,22 @@ export class MemStorage implements IStorage {
   }
 
   async getCategoryInsights(userId: string, categoryId: string, limit?: number): Promise<CategoryInsight[]> {
+    return [];
+  }
+
+  async createUserFeedback(feedback: InsertUserFeedback & { userId: string }): Promise<UserFeedback> {
+    throw new Error("User feedback not supported in MemStorage");
+  }
+
+  async getUserFeedbackByTarget(targetType: string, targetId: string): Promise<UserFeedback[]> {
+    return [];
+  }
+
+  async createAnalyticsEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent> {
+    throw new Error("Analytics events not supported in MemStorage");
+  }
+
+  async getAnalyticsEventsByUser(userId: string, eventType?: string): Promise<AnalyticsEvent[]> {
     return [];
   }
 }
@@ -672,6 +694,35 @@ export class PostgresStorage implements IStorage {
       ))
       .orderBy(desc(categoryInsights.createdAt))
       .limit(limit);
+  }
+
+  async createUserFeedback(feedback: InsertUserFeedback & { userId: string }): Promise<UserFeedback> {
+    const result = await db.insert(userFeedback).values(feedback).returning();
+    return result[0];
+  }
+
+  async getUserFeedbackByTarget(targetType: string, targetId: string): Promise<UserFeedback[]> {
+    return await db.select().from(userFeedback)
+      .where(and(
+        eq(userFeedback.targetType, targetType),
+        eq(userFeedback.targetId, targetId)
+      ))
+      .orderBy(desc(userFeedback.createdAt));
+  }
+
+  async createAnalyticsEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent> {
+    const result = await db.insert(analyticsEvents).values(event).returning();
+    return result[0];
+  }
+
+  async getAnalyticsEventsByUser(userId: string, eventType?: string): Promise<AnalyticsEvent[]> {
+    const conditions = [eq(analyticsEvents.userId, userId)];
+    if (eventType) {
+      conditions.push(eq(analyticsEvents.eventType, eventType));
+    }
+    return await db.select().from(analyticsEvents)
+      .where(and(...conditions))
+      .orderBy(desc(analyticsEvents.createdAt));
   }
 }
 
