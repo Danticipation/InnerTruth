@@ -1,14 +1,7 @@
-import OpenAI from "openai";
+import { aiClient, getJsonModel, isOllamaMode } from "./lib/ai-client";
+import { parseJsonWithFallback } from "./lib/ai-utils";
 import { storage } from "./storage";
 import type { Message, JournalEntry } from "@shared/schema";
-
-// Prioritize direct OPENAI_API_KEY for unfiltered access
-const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-const openai = new OpenAI({
-  apiKey,
-  // Only use baseURL if using Replit integration
-  baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL
-});
 
 interface ExtractedFact {
   fact: string;
@@ -44,12 +37,7 @@ export class MemoryService {
 
   private async extractFacts(text: string, sourceType: string): Promise<ExtractedFact[]> {
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `You are a multi-level memory extraction AI with expertise in clinical psychology. Extract information about the user at FOUR abstraction levels from their ${sourceType}.
+      const systemContent = `You are a multi-level memory extraction AI with expertise in clinical psychology. Extract information about the user at FOUR abstraction levels from their ${sourceType}.
 
 **ABSTRACTION LEVELS:**
 
@@ -105,40 +93,26 @@ Return ONLY a JSON array with this structure:
   "emotionalTone": "string"
 }]
 
-Prioritize quality over quantity. Go deep.`
-          },
-          {
-            role: "user",
-            content: text
-          }
+Prioritize quality over quantity. Go deep.${isOllamaMode() ? "\n\nIMPORTANT: Respond with ONLY a valid JSON array. No other text, no markdown, no explanation." : ""}`;
+
+      const completion = await aiClient.chat.completions.create({
+        model: getJsonModel(),
+        messages: [
+          { role: "system", content: systemContent },
+          { role: "user", content: text }
         ],
-        temperature: 0.3,  // Deterministic for fact extraction (per formula)
-        max_tokens: 2000,  // More tokens for multi-level extraction
+        temperature: 0.3,
+        max_tokens: 2000,
         top_p: 0.95,
         presence_penalty: 0.2,
         frequency_penalty: 0.8,
-        response_format: { type: "json_object" }  // Force valid JSON output
+        ...(isOllamaMode() ? {} : { response_format: { type: "json_object" } })
       });
 
-      let response = completion.choices[0].message.content || "[]";
-      
-      // ROBUST: Strip markdown code blocks if GPT wraps JSON (common with GPT-4o)
-      response = response.trim();
-      if (response.startsWith('```')) {
-        // Remove ```json or ``` opening and closing markers
-        response = response.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      }
-      
-      // Additional cleanup: remove any remaining non-JSON text before/after
-      const jsonStart = response.indexOf('[');
-      const jsonEnd = response.lastIndexOf(']');
-      if (jsonStart >= 0 && jsonEnd > jsonStart) {
-        response = response.substring(jsonStart, jsonEnd + 1);
-      }
-      
-      const facts = JSON.parse(response);
-      
-      return Array.isArray(facts) ? facts : [];
+      const rawResponse = completion.choices[0].message.content || "[]";
+      const facts = parseJsonWithFallback<ExtractedFact[] | { facts?: ExtractedFact[] }>(rawResponse, []);
+      const arr = Array.isArray(facts) ? facts : (facts as { facts?: ExtractedFact[] }).facts ?? [];
+      return arr;
     } catch (error) {
       console.error("Error extracting facts:", error);
       return [];

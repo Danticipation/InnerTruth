@@ -1,19 +1,7 @@
+import { aiClient, getJsonModel, isOllamaMode } from "./lib/ai-client";
+import { parseJsonWithFallback } from "./lib/ai-utils";
 import { storage } from "./storage";
 import { getCategoryById } from "./categories";
-import OpenAI from "openai";
-
-// Initialize OpenAI client - prioritize direct API for unfiltered access
-const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-if (!apiKey) {
-  console.error("ERROR: No OpenAI API key configured. Set either OPENAI_API_KEY or AI_INTEGRATIONS_OPENAI_API_KEY");
-  throw new Error("OpenAI API key not configured");
-}
-
-const openai = new OpenAI({
-  apiKey,
-  // Only use baseURL if using Replit integration (AI_INTEGRATIONS_OPENAI_API_KEY)
-  baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL
-});
 
 export interface CategoryScoreResult {
   score: number; // 0-100
@@ -191,7 +179,7 @@ ${category.journalPrompts.join('\n')}
 Confidence level should be:
 - "low" if there's insufficient data or contradictory signals
 - "medium" if there's moderate data showing consistent patterns
-- "high" if there's substantial data with clear, consistent patterns`;
+- "high" if there's substantial data with clear, consistent patterns${isOllamaMode() ? "\n\nIMPORTANT: Respond with ONLY valid JSON matching the schema. No other text, no markdown, no explanation." : ""}`;
 
   const userPrompt = `=== JOURNAL ENTRIES (last ${lookbackDays} days) ===
 ${journalContext || '(No recent journal entries)'}
@@ -202,28 +190,38 @@ ${chatContext || '(No recent chat messages)'}
 Generate a ${category.name} score based on this data.`;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const completion = await aiClient.chat.completions.create({
+      model: getJsonModel(),
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
       temperature: 0.7,
       max_tokens: 1500,
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "category_score_analysis",
-          strict: true,
-          schema: SCORE_RESPONSE_SCHEMA
-        }
-      }
+      ...(isOllamaMode()
+        ? {}
+        : {
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "category_score_analysis",
+                strict: true,
+                schema: SCORE_RESPONSE_SCHEMA
+              }
+            }
+          })
     });
 
-    const responseText = completion.choices[0]?.message?.content?.trim() || '{}';
-    
-    // Parse structured JSON response
-    const result: CategoryScoreResult = JSON.parse(responseText);
+    const responseText = completion.choices[0]?.message?.content?.trim() || "{}";
+    const result = parseJsonWithFallback<CategoryScoreResult>(responseText, {
+      score: 0,
+      reasoning: "Failed to parse AI response.",
+      keyPatterns: [],
+      progressIndicators: [],
+      areasForGrowth: [],
+      confidenceLevel: "low",
+      evidenceSnippets: []
+    });
 
     // Validate and clamp score
     result.score = Math.max(0, Math.min(100, result.score));

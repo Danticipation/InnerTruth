@@ -1,14 +1,6 @@
-import OpenAI from "openai";
+import { aiClient, getJsonModel, isOllamaMode } from "./lib/ai-client";
 import { storage } from "./storage";
 import type { MemoryFact, Message, JournalEntry, MoodEntry } from "@shared/schema";
-
-// Prioritize direct OPENAI_API_KEY for unfiltered access
-const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-const openai = new OpenAI({
-  apiKey,
-  // Only use baseURL if using Replit integration
-  baseURL: process.env.OPENAI_API_KEY ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL
-});
 
 interface ComprehensiveProfile {
   summary: string;
@@ -558,21 +550,23 @@ Return JSON:
   }
 }`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const jsonHint = isOllamaMode() ? "\n\nIMPORTANT: Respond with ONLY valid JSON. No other text, no markdown, no explanation." : "";
+    const response = await aiClient.chat.completions.create({
+      model: getJsonModel(),
       messages: [
         { role: "system", content: "You are a clinical psychologist generating personality analysis based on user data." },
-        { role: "user", content: prompt }
+        { role: "user", content: prompt + jsonHint }
       ],
       temperature: 0.7,
       top_p: 0.95,
       presence_penalty: 0.2,
       frequency_penalty: 0.8,
       max_tokens: 2000,
-      response_format: { type: "json_object" }
+      ...(isOllamaMode() ? {} : { response_format: { type: "json_object" } })
     });
 
-    return JSON.parse(response.choices[0].message.content || "{}");
+    const { parseJsonWithFallback } = await import("./lib/ai-utils");
+    return parseJsonWithFallback(response.choices[0].message.content || "{}", {});
   }
 
   private async generateSectionWithRetry(sectionName: string, context: any, maxAttempts: number = 2): Promise<string[]> {
@@ -651,15 +645,16 @@ Return JSON with exactly 8 insights: {"insights": ["insight 1", "insight 2", ...
 
     const simplifiedSystemMessage = `You are an unforgiving clinical diagnostician delivering psychological findings. NO polite hedging. NO therapeutic reassurance. NO Instagram wisdom. State uncomfortable truths like reading a medical diagnosis: factual, direct, devastating. If you have nothing clinically significant to say, write "Insufficient data for meaningful analysis" instead of generic observations.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const jsonHint = isOllamaMode() ? "\n\nIMPORTANT: Respond with ONLY valid JSON. No other text, no markdown, no explanation." : "";
+    const response = await aiClient.chat.completions.create({
+      model: getJsonModel(),
       messages: [
         { role: "system", content: simplifiedSystemMessage },
-        { role: "user", content: simplifiedPrompt }
+        { role: "user", content: simplifiedPrompt + jsonHint }
       ],
       temperature: 0.85,
       max_tokens: 2000,
-      response_format: { type: "json_object" }
+      ...(isOllamaMode() ? {} : { response_format: { type: "json_object" } })
     });
 
     const result = this.parseAIResponse(response.choices[0].message.content || "{}");
@@ -811,18 +806,19 @@ WRITING STANDARD: Write like a skilled clinical therapist. Be precise, concise, 
 QUALITY THRESHOLD:
 Every single insight must make them think "how did you know that?" - not "I already knew that". You're revealing patterns they cannot easily see about themselves. That's the standard.`;
 
-    const firstPassResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const jsonHint = isOllamaMode() ? "\n\nIMPORTANT: Respond with ONLY valid JSON. No other text, no markdown, no explanation." : "";
+    const firstPassResponse = await aiClient.chat.completions.create({
+      model: getJsonModel(),
       messages: [
         { role: "system", content: systemMessage },
-        { role: "user", content: firstPassPrompt }
+        { role: "user", content: firstPassPrompt + jsonHint }
       ],
       temperature: 0.8,
-      top_p: 0.95,  // Nucleus sampling for diverse vocabulary
-      presence_penalty: 0.2,  // Discourage repetitive topics
-      frequency_penalty: 0.8,  // Prevent repetition
+      top_p: 0.95,
+      presence_penalty: 0.2,
+      frequency_penalty: 0.8,
       max_tokens: 3000,
-      response_format: { type: "json_object" }
+      ...(isOllamaMode() ? {} : { response_format: { type: "json_object" } })
     });
 
     const firstPassResult = this.parseAIResponse(firstPassResponse.choices[0].message.content || "{}");
@@ -868,18 +864,19 @@ Return JSON:
 
     const supervisorMessage = `You are a ruthless senior clinical supervisor who enforces ZERO tolerance for polite, hedging, or reassuring language. Your job is to transform insights into brutal clinical diagnoses. If an insight sounds like something a therapist would say to avoid hurting feelings, you REJECT it. The user wants devastating truth, not comfort.`;
 
-    const secondPassResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const secondPassJsonHint = isOllamaMode() ? "\n\nIMPORTANT: Respond with ONLY valid JSON. No other text, no markdown, no explanation." : "";
+    const secondPassResponse = await aiClient.chat.completions.create({
+      model: getJsonModel(),
       messages: [
         { role: "system", content: supervisorMessage },
-        { role: "user", content: secondPassPrompt }
+        { role: "user", content: secondPassPrompt + secondPassJsonHint }
       ],
-      temperature: 0.9,  // Higher for more creative rewrites
+      temperature: 0.9,
       top_p: 0.95,
       presence_penalty: 0.2,
       frequency_penalty: 0.8,
       max_tokens: 3000,
-      response_format: { type: "json_object" }
+      ...(isOllamaMode() ? {} : { response_format: { type: "json_object" } })
     });
 
     const result = this.parseAIResponse(secondPassResponse.choices[0].message.content || "{}");
@@ -993,15 +990,16 @@ Example: "Your low authenticity scores in relationships (Category X) correlate d
 
 Return JSON: {"metaReflections": ["reflection 1", "reflection 2", ... 5-8 total]}`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const jsonHint = isOllamaMode() ? "\n\nIMPORTANT: Respond with ONLY valid JSON. No other text, no markdown, no explanation." : "";
+    const response = await aiClient.chat.completions.create({
+      model: getJsonModel(),
       messages: [
         { role: "system", content: "You are a master psychologist identifying deep correlations across personality data." },
-        { role: "user", content: prompt }
+        { role: "user", content: prompt + jsonHint }
       ],
       temperature: 0.8,
       max_tokens: 1500,
-      response_format: { type: "json_object" }
+      ...(isOllamaMode() ? {} : { response_format: { type: "json_object" } })
     });
 
     const result = this.parseAIResponse(response.choices[0].message.content || "{}");
@@ -1020,18 +1018,19 @@ Return JSON:
   "growthLeveragePoint": "ONE counter-intuitive action targeting the core pattern (NOT generic advice like 'practice self-care')"
 }`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const jsonHint = isOllamaMode() ? "\n\nIMPORTANT: Respond with ONLY valid JSON. No other text, no markdown, no explanation." : "";
+    const response = await aiClient.chat.completions.create({
+      model: getJsonModel(),
       messages: [
         { role: "system", content: "You are a master psychologist identifying the core organizing principle in someone's personality." },
-        { role: "user", content: prompt }
+        { role: "user", content: prompt + jsonHint }
       ],
       temperature: 0.9,
       top_p: 0.95,
       presence_penalty: 0.2,
       frequency_penalty: 0.8,
       max_tokens: 1000,
-      response_format: { type: "json_object" }
+      ...(isOllamaMode() ? {} : { response_format: { type: "json_object" } })
     });
 
     return this.parseAIResponse(response.choices[0].message.content || "{}");
@@ -1233,19 +1232,19 @@ FINAL CRITICAL REQUIREMENTS:
 Remember: They can get surface-level feedback anywhere. You're here to reveal what they genuinely don't know about themselves.`;
 
     try {
-      // STEP 1: First pass - generate initial analysis
-      const firstPassCompletion = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const jsonHint = isOllamaMode() ? "\n\nIMPORTANT: Respond with ONLY valid JSON. No other text, no markdown, no explanation." : "";
+      const firstPassCompletion = await aiClient.chat.completions.create({
+        model: getJsonModel(),
         messages: [
           { role: "system", content: systemMessage },
-          { role: "user", content: userPrompt }
+          { role: "user", content: userPrompt + jsonHint }
         ],
-        temperature: 0.8,  // Higher for creative, non-templated insights
-        max_tokens: 16000,  // INCREASED: Need room for 9 sections × 8-12 items each
-        top_p: 0.95,  // Nucleus sampling for diverse vocabulary
-        presence_penalty: 0.2,  // Discourage repetitive topics/patterns
-        frequency_penalty: 0.8,  // Strongly discourage repetitive phrases/structures
-        response_format: { type: "json_object" }
+        temperature: 0.8,
+        max_tokens: 16000,
+        top_p: 0.95,
+        presence_penalty: 0.2,
+        frequency_penalty: 0.8,
+        ...(isOllamaMode() ? {} : { response_format: { type: "json_object" } })
       });
 
       const analysis = JSON.parse(firstPassCompletion.choices[0].message.content || "{}");

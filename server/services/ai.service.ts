@@ -1,24 +1,17 @@
-import OpenAI from "openai";
-import { config } from "../config";
+import { aiClient, getChatModel, getJsonModel, isOllamaMode } from "../lib/ai-client";
 import { AIServiceError } from "../lib/errors";
 import { type Message } from "@shared/schema";
 
 export class AIService {
-  private openai: OpenAI;
-
-  constructor() {
-    this.openai = new OpenAI({
-      apiKey: config.OPENAI_API_KEY,
-    });
-  }
-
   /**
    * Generates a response for the chat interface.
+   * Uses AI_CHAT_MODEL (roast persona when configured for Ollama).
    */
   async generateChatResponse(userId: string, history: Message[], memoryContext: string): Promise<string> {
     let processedHistory = history;
 
     // Chain prompts: If history is long, summarize it first to save tokens and maintain focus
+    // Use base model for summarization (structural task)
     if (history.length > 10) {
       try {
         const summaryPrompt = `Summarize the key themes, emotional shifts, and core topics discussed in this conversation so far. Focus on psychological patterns and the user's current state.
@@ -26,8 +19,8 @@ export class AIService {
 Conversation:
 ${history.map(m => `${m.role}: ${m.content}`).join('\n')}`;
 
-        const summary = await this.openai.chat.completions.create({
-          model: "gpt-4o-mini",
+        const summary = await aiClient.chat.completions.create({
+          model: getJsonModel(),
           messages: [{ role: "user", content: summaryPrompt }],
           temperature: 0.3,
           max_tokens: 300,
@@ -68,8 +61,8 @@ Use these established facts (including IFS parts, inferred beliefs, and defense 
 DISCLAIMER: I am an AI, not a therapist. These insights are for self-reflection and should not replace professional mental health advice.`;
 
     try {
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+      const completion = await aiClient.chat.completions.create({
+        model: getChatModel(),
         messages: [
           { role: "system", content: systemPrompt },
           ...processedHistory.map(msg => ({
@@ -134,11 +127,12 @@ Focus on insights that would genuinely surprise them or help them see something 
 DISCLAIMER: AI-generated insight, not therapy.`;
 
     try {
-      const analysis = await this.openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: analysisPrompt }],
+      const finalPrompt = isOllamaMode() ? `${analysisPrompt}\n\nIMPORTANT: Respond with ONLY valid JSON. No other text, no markdown, no explanation.` : analysisPrompt;
+      const analysis = await aiClient.chat.completions.create({
+        model: getJsonModel(),
+        messages: [{ role: "user", content: finalPrompt }],
         temperature: 0.8,
-        response_format: { type: "json_object" }
+        ...(isOllamaMode() ? {} : { response_format: { type: "json_object" } })
       });
 
       // Log AI usage for monitoring
@@ -151,7 +145,8 @@ DISCLAIMER: AI-generated insight, not therapy.`;
         });
       }
 
-      return JSON.parse(analysis.choices[0].message.content || "{}");
+      const { parseJsonWithFallback } = await import("../lib/ai-utils");
+      return parseJsonWithFallback(analysis.choices[0].message.content || "{}", {});
     } catch (error: any) {
       console.error("[AI-SERVICE] Journal analysis failed:", error);
       throw new AIServiceError(error.message);
@@ -195,11 +190,12 @@ Be specific and reference their actual words/behaviors. Ensure cultural neutrali
 DISCLAIMER: AI-generated analysis, not therapy.`;
 
     try {
-      const analysis = await this.openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: analysisPrompt }],
+      const finalPrompt = isOllamaMode() ? `${analysisPrompt}\n\nIMPORTANT: Respond with ONLY valid JSON. No other text, no markdown, no explanation.` : analysisPrompt;
+      const analysis = await aiClient.chat.completions.create({
+        model: getJsonModel(),
+        messages: [{ role: "user", content: finalPrompt }],
         temperature: 0.7,
-        response_format: { type: "json_object" }
+        ...(isOllamaMode() ? {} : { response_format: { type: "json_object" } })
       });
 
       // Log AI usage for monitoring
@@ -212,7 +208,8 @@ DISCLAIMER: AI-generated analysis, not therapy.`;
         });
       }
 
-      return JSON.parse(analysis.choices[0].message.content || "{}");
+      const { parseJsonWithFallback } = await import("../lib/ai-utils");
+      return parseJsonWithFallback(analysis.choices[0].message.content || "{}", {});
     } catch (error: any) {
       console.error("[AI-SERVICE] Full analysis failed:", error);
       throw new AIServiceError(error.message);
