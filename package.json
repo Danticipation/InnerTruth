@@ -97,7 +97,7 @@
     "autoprefixer": "^10.4.23",
     "cross-env": "^10.1.0",
     "drizzle-kit": "^0.31.8",
-    "esbuild": "^0.27.2",
+    "esbuild": "^0.27.3",
     "lightningcss": "^1.31.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
