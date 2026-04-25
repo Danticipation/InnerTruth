@@ -41,6 +41,8 @@ interface ComprehensiveProfile {
   };
 }
 
+type CoreAnalysis = Pick<ComprehensiveProfile, "summary" | "coreTraits">;
+
 // Tier configuration
 const TIER_CONFIG = {
   free: {
@@ -525,7 +527,7 @@ export class ComprehensiveAnalytics {
       : '';
   }
 
-  private async generateCoreAnalysis(context: any) {
+  private async generateCoreAnalysis(context: any): Promise<CoreAnalysis> {
     const prompt = `Analyze this person's personality and generate a summary + Big 5 traits.
 
 DATA:
@@ -566,7 +568,20 @@ Return JSON:
     });
 
     const { parseJsonWithFallback } = await import("./lib/ai-utils");
-    return parseJsonWithFallback(response.choices[0].message.content || "{}", {});
+    return parseJsonWithFallback<CoreAnalysis>(response.choices[0].message.content || "{}", {
+      summary: "Insufficient data to generate a personality summary.",
+      coreTraits: {
+        big5: {
+          openness: 50,
+          conscientiousness: 50,
+          extraversion: 50,
+          agreeableness: 50,
+          emotionalStability: 50,
+        },
+        archetype: "Undetermined",
+        dominantTraits: [],
+      },
+    });
   }
 
   private async generateSectionWithRetry(sectionName: string, context: any, maxAttempts: number = 2): Promise<string[]> {

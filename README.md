@@ -73,12 +73,17 @@ The project is configured for deployment on **Netlify**.
 ## Environment Variables
 Ensure the following variables are set in your deployment environment (Netlify UI):
 
-### Backend (Secrets)
+### Backend (Secrets/Server Runtime)
 - `DATABASE_URL`: PostgreSQL connection string.
-- `OPENAI_API_KEY`: Your OpenAI API key.
-- `ELEVENLABS_API_KEY`: Your Eleven Labs API key (optional).
-- `JWT_SECRET`: Secret for JWT verification.
-- `SESSION_SECRET`: Secret for session management.
+- `SUPABASE_URL`: Supabase project URL used for JWT verification.
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key (server-only; optional unless needed by server tasks).
+- `SUPABASE_JWT_AUD`: Supabase JWT audience (commonly `authenticated`).
+- `OPENAI_API_KEY`: OpenAI API key (required unless using Ollama via `OPENAI_API_BASE_URL`).
+- `OPENAI_API_BASE_URL`: Optional OpenAI-compatible base URL (for Ollama/local models).
+- `AI_MODEL`: Base model for JSON/analysis endpoints (defaults to `gpt-4o`).
+- `AI_CHAT_MODEL`: Optional chat model override; defaults to `AI_MODEL` when unset.
+- `ELEVENLABS_API_KEY`: Eleven Labs API key (optional, for TTS).
+- `CORS_ORIGIN`: Comma-separated allowed origins for API CORS (defaults to localhost dev origins).
 
 ### Frontend (Vite Environment Variables)
 - `VITE_SUPABASE_URL`: Your Supabase project URL.

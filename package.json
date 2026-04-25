@@ -13,7 +13,10 @@
     "check": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "plan:set": "tsx server/scripts/set-plan-tier.ts",
+    "plan:get": "tsx server/scripts/get-plan-tier.ts",
+    "ops:help": "tsx server/scripts/ops-help.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

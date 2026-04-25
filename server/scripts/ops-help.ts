@@ -1,0 +1,26 @@
+const lines = [
+  "",
+  "InnerTruth Ops Quick Help",
+  "=========================",
+  "",
+  "Read current plan tier:",
+  "  npm run plan:get -- --user-id <user-id>",
+  "  npm run plan:get -- --email <user-email>",
+  "",
+  "Set plan tier:",
+  "  npm run plan:set -- --user-id <user-id> --tier <free|standard|premium> --yes",
+  "  npm run plan:set -- --email <user-email> --tier <free|standard|premium> --yes",
+  "",
+  "Safe change flow:",
+  "  1) Read tier (plan:get)",
+  "  2) Record current tier",
+  "  3) Set new tier (plan:set)",
+  "  4) Verify again (plan:get)",
+  "",
+  "Docs:",
+  "  ADMIN_OPERATIONS.md",
+  "  DEPLOYMENT.md",
+  "",
+];
+
+console.log(lines.join("\n"));
