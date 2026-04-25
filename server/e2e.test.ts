@@ -1,17 +1,19 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { storage } from "./storage";
-import { aiService } from "./services/ai.service";
-import { generateAndPersistCategoryScore } from "./category-scoring";
+import { describe, it, expect } from "vitest";
 
-describe("E2E Flow: Auth -> Category Select -> Score Gen", () => {
+const hasE2EEnv =
+  !!process.env.DATABASE_URL &&
+  !!process.env.SUPABASE_URL &&
+  (!!process.env.OPENAI_API_KEY || !!process.env.OPENAI_API_BASE_URL);
+
+const describeIfE2E = hasE2EEnv ? describe : describe.skip;
+
+describeIfE2E("E2E Flow: Auth -> Category Select -> Score Gen", () => {
   const testUserId = "test-user-id-" + Date.now();
 
-  beforeAll(async () => {
-    // Setup test user if needed, but storage.getUser might handle it
-    // In this environment, we assume storage is accessible
-  });
-
   it("should allow a user to select a category and generate a score", async () => {
+    const { storage } = await import("./storage");
+    const { generateAndPersistCategoryScore } = await import("./category-scoring");
+
     // 1. Simulate Category Selection
     const categoryId = "1"; // Assuming category '1' exists
     const selected = await storage.selectCategory({

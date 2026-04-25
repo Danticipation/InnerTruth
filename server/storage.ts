@@ -99,6 +99,7 @@ export class MemStorage implements IStorage {
       firstName: userData.firstName || null,
       lastName: userData.lastName || null,
       profileImageUrl: userData.profileImageUrl || null,
+      planTier: existingUser?.planTier || "free",
       createdAt: existingUser?.createdAt || new Date(),
       updatedAt: new Date(),
     };

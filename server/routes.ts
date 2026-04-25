@@ -11,6 +11,32 @@ import { ForbiddenError, NotFoundError, BadRequestError } from "./lib/errors";
 import { config } from "./config";
 import { jobCoordinator } from "./lib/jobs";
 
+type PlanTier = "free" | "standard" | "premium";
+
+const PLAN_LIMITS: Record<PlanTier, number> = {
+  free: 1,
+  standard: 3,
+  premium: Number.POSITIVE_INFINITY,
+};
+
+const PLAN_CATEGORY_TIER_LIMIT: Record<PlanTier, 1 | 2 | 3> = {
+  free: 1,
+  standard: 2,
+  premium: 3,
+};
+
+function normalizePlanTier(tier: unknown): PlanTier {
+  if (tier === "premium" || tier === "standard" || tier === "free") {
+    return tier;
+  }
+  return "free";
+}
+
+async function getUserPlanTier(userId: string): Promise<PlanTier> {
+  const user = await storage.getUser(userId);
+  return normalizePlanTier(user?.planTier);
+}
+
 async function triggerCategoryScoring(userId: string) {
   jobCoordinator.run("category-scoring", userId, async () => {
     const selectedCategories = await storage.getUserSelectedCategories(userId);
@@ -632,8 +658,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Category not found" });
       }
 
-      // TODO: Add plan limit enforcement (Free=1, Premium tiers unlock more)
-      // For MVP, allow unlimited selections
+      const selectedCategories = await storage.getUserSelectedCategories(userId);
+      const existingSelection = selectedCategories.find((c) => c.categoryId === categoryId);
+      if (existingSelection) {
+        return res.status(200).json(existingSelection);
+      }
+
+      const planTier = await getUserPlanTier(userId);
+      const maxAllowedCategoryTier = PLAN_CATEGORY_TIER_LIMIT[planTier];
+      if (category.tier > maxAllowedCategoryTier) {
+        return res.status(403).json({
+          error: `Your ${planTier} plan does not include this category.`,
+          requiredTier:
+            category.tier === 3 ? "premium" : category.tier === 2 ? "standard" : "free",
+        });
+      }
+
+      const selectedCount = selectedCategories.length;
+      const maxCategories = PLAN_LIMITS[planTier];
+      if (selectedCount >= maxCategories) {
+        return res.status(403).json({
+          error: `Your ${planTier} plan allows ${maxCategories} active ${maxCategories === 1 ? "category" : "categories"}.`,
+          selectedCount,
+          maxCategories,
+        });
+      }
 
       try {
         const selected = await storage.selectCategory({
